@@ -19,7 +19,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     }
 
     const adminEmailList = await getAdminEmails()
-    sendReturnEmail(
+    await sendReturnEmail(
       { ...rental, items },
       adminEmailList.map(a => a.email)
     ).catch(err => console.error('Email send failed:', err))

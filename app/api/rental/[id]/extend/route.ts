@@ -21,7 +21,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     const items = await getRentalItems(id)
     const adminEmailList = await getAdminEmails()
-    sendExtendEmail(
+    await sendExtendEmail(
       { ...rental, items },
       newReturnDue,
       adminEmailList.map(a => a.email)

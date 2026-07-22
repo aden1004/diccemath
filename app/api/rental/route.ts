@@ -78,12 +78,13 @@ export async function POST(req: Request) {
       await adjustRentedQty(item.equipmentName, item.quantity)
     }
 
-    // Send confirmation emails (fire-and-forget)
+    // Send confirmation emails. Await so the serverless function is not frozen
+    // before the SMTP send completes; failures are logged but never fail the request.
     const adminEmailList = await getAdminEmails()
     const rentalItems = await getRentalItems(rentalId)
     const rental = await getRentalById(rentalId)
     if (rental) {
-      sendRentalConfirmEmail(
+      await sendRentalConfirmEmail(
         { ...rental, items: rentalItems },
         adminEmailList.map(a => a.email)
       ).catch(err => console.error('Email send failed:', err))
