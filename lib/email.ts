@@ -13,6 +13,14 @@ function formatItemList(items: RentalDetail['items']): string {
   return items.map(i => `• ${i.equipmentName} ${i.quantity}개`).join('\n')
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function toHtml(text: string): string {
+  return `<div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:14px;line-height:1.8;color:#1e293b;white-space:pre-line">${escapeHtml(text)}</div>`
+}
+
 async function sendMail(subject: string, text: string, recipients: string[]): Promise<void> {
   const transporter = getTransporter()
   if (!transporter) {
@@ -21,10 +29,12 @@ async function sendMail(subject: string, text: string, recipients: string[]): Pr
   }
   if (recipients.length === 0) return
   await transporter.sendMail({
-    from: process.env.GMAIL_USER,
+    from: { name: '대구수학체험센터 교구대여', address: process.env.GMAIL_USER! },
     to: recipients.join(','),
+    replyTo: process.env.GMAIL_USER,
     subject,
     text,
+    html: toHtml(text),
   })
 }
 
