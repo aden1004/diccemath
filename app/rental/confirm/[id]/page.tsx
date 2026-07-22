@@ -10,10 +10,10 @@ export default async function ConfirmPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-green-700 mb-2">신청 완료!</h1>
+      <div className="glass rounded-3xl p-6">
+        <h1 className="text-2xl font-bold text-green-700 mb-2">✅ 신청 완료!</h1>
         <p className="text-gray-600 mb-4">아래 대여 ID를 저장해두세요. 조회/반납/연장 시 필요합니다.</p>
-        <div className="bg-white rounded border p-4 mb-4 flex flex-col gap-2">
+        <div className="glass-inner p-4 mb-4 flex flex-col gap-2">
           <div className="flex justify-between">
             <span className="text-gray-500">대여 ID</span>
             <span className="font-bold text-blue-700">{rental.rentalId}</span>

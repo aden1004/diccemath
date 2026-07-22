@@ -3,12 +3,12 @@ import Link from 'next/link'
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div>
-      <nav className="bg-gray-800 text-white px-6 py-3 flex gap-6 text-sm mb-6">
-        <Link href="/admin" className="hover:text-blue-300">대시보드</Link>
-        <Link href="/admin/inventory" className="hover:text-blue-300">교구 관리</Link>
-        <Link href="/admin/settings" className="hover:text-blue-300">설정</Link>
+      <nav className="glass rounded-2xl px-6 py-3 flex gap-6 text-sm mb-6 items-center">
+        <Link href="/admin" className="font-medium text-gray-700 hover:text-blue-600 transition-colors">대시보드</Link>
+        <Link href="/admin/inventory" className="font-medium text-gray-700 hover:text-blue-600 transition-colors">교구 관리</Link>
+        <Link href="/admin/settings" className="font-medium text-gray-700 hover:text-blue-600 transition-colors">설정</Link>
         <form action="/api/auth/logout" method="POST" className="ml-auto">
-          <button type="submit" className="hover:text-red-300">로그아웃</button>
+          <button type="submit" className="font-medium text-gray-500 hover:text-red-500 transition-colors">로그아웃</button>
         </form>
       </nav>
       {children}

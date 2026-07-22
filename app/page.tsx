@@ -12,16 +12,10 @@ export default async function HomePage() {
       <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">수학교구 목록</h1>
         <div className="flex gap-2">
-          <Link
-            href="/rental/lookup"
-            className="bg-gray-100 text-gray-800 px-4 py-2 rounded hover:bg-gray-200 border"
-          >
+          <Link href="/rental/lookup" className="btn-glass px-5 py-2">
             대여 조회·반납·연장
           </Link>
-          <Link
-            href="/rental/new"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
+          <Link href="/rental/new" className="btn-liquid px-5 py-2">
             대여 신청하기
           </Link>
         </div>

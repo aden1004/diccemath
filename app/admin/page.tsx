@@ -46,7 +46,7 @@ export default function AdminDashboard() {
         {rentals.length === 0 && <p className="text-gray-500">대여 중인 교구가 없습니다.</p>}
         <div className="flex flex-col gap-3">
           {rentals.map(rental => (
-            <div key={rental.rentalId} className="bg-white rounded shadow p-4 flex justify-between items-start">
+            <div key={rental.rentalId} className="glass rounded-2xl p-4 flex justify-between items-start">
               <div>
                 <p className="font-bold">
                   {rental.rentalId} · {rental.schoolName}
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={() => handleReturn(rental.rentalId)}
-                className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded text-sm whitespace-nowrap ml-4"
+                className="btn-glass px-4 py-1.5 text-sm whitespace-nowrap ml-4"
               >
                 반납 처리
               </button>
@@ -84,15 +84,15 @@ export default function AdminDashboard() {
 
       <section>
         <h2 className="text-lg font-semibold mb-3">대여 통계</h2>
-        <form onSubmit={handleStats} className="flex gap-2 mb-4">
-          <input type="date" required value={statsFrom} onChange={e => setStatsFrom(e.target.value)} className="border rounded px-2 py-1" />
+        <form onSubmit={handleStats} className="glass rounded-2xl p-3 inline-flex gap-2 mb-4">
+          <input type="date" required value={statsFrom} onChange={e => setStatsFrom(e.target.value)} className="glass-input px-2 py-1" />
           <span className="self-center">~</span>
-          <input type="date" required value={statsTo} onChange={e => setStatsTo(e.target.value)} className="border rounded px-2 py-1" />
-          <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">조회</button>
+          <input type="date" required value={statsTo} onChange={e => setStatsTo(e.target.value)} className="glass-input px-2 py-1" />
+          <button type="submit" className="btn-liquid px-4 py-1 text-sm">조회</button>
         </form>
         {statsError && <p className="text-red-600 text-sm mb-2">{statsError}</p>}
         {stats && (
-          <div className="bg-white rounded shadow p-4">
+          <div className="glass rounded-2xl p-4">
             <p className="font-semibold mb-2">총 {stats.total}건</p>
             <table className="w-full text-sm">
               <thead><tr className="text-left border-b"><th className="py-1">교구명</th><th>대여횟수</th></tr></thead>

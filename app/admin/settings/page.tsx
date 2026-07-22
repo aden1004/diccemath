@@ -73,7 +73,7 @@ export default function AdminSettingsPage() {
       <h1 className="text-2xl font-bold mb-6">설정</h1>
 
       {/* Email management */}
-      <section className="bg-white rounded shadow p-5 mb-6">
+      <section className="glass rounded-3xl p-5 mb-6">
         <h2 className="font-semibold mb-3">관리자 이메일</h2>
         {emailMsg && <p className={`text-sm mb-2 ${emailMsg.ok ? 'text-blue-700' : 'text-red-600'}`}>{emailMsg.text}</p>}
         <div className="flex flex-col gap-2 mb-4">
@@ -81,8 +81,8 @@ export default function AdminSettingsPage() {
             <div key={em.id} className="flex items-center gap-2">
               {editId === em.id ? (
                 <>
-                  <input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="border rounded px-2 py-1 text-sm flex-1" />
-                  <input value={editName} onChange={e => setEditName(e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
+                  <input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="glass-input px-2 py-1 text-sm flex-1" />
+                  <input value={editName} onChange={e => setEditName(e.target.value)} className="glass-input px-2 py-1 text-sm w-24" />
                   <button onClick={() => handleUpdateEmail(em.id)} className="text-blue-600 text-sm">저장</button>
                   <button onClick={() => setEditId(null)} className="text-gray-400 text-sm">취소</button>
                 </>
@@ -98,14 +98,14 @@ export default function AdminSettingsPage() {
           ))}
         </div>
         <form onSubmit={handleAddEmail} className="flex gap-2">
-          <input required type="email" placeholder="이메일" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="border rounded px-2 py-1 text-sm flex-1" />
-          <input placeholder="이름" value={newName} onChange={e => setNewName(e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
-          <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">추가</button>
+          <input required type="email" placeholder="이메일" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="glass-input px-2 py-1 text-sm flex-1" />
+          <input placeholder="이름" value={newName} onChange={e => setNewName(e.target.value)} className="glass-input px-2 py-1 text-sm w-24" />
+          <button type="submit" className="btn-liquid px-4 py-1 text-sm">추가</button>
         </form>
       </section>
 
       {/* Password change */}
-      <section className="bg-white rounded shadow p-5">
+      <section className="glass rounded-3xl p-5">
         <h2 className="font-semibold mb-3">비밀번호 변경</h2>
         {pwMsg && <p className={`text-sm mb-2 ${pwMsg.ok ? 'text-blue-700' : 'text-red-600'}`}>{pwMsg.text}</p>}
         <form onSubmit={handleChangePw} className="flex flex-col gap-3">
@@ -116,10 +116,10 @@ export default function AdminSettingsPage() {
           ].map(({ label, value, onChange }) => (
             <div key={label}>
               <label className="text-sm text-gray-600 block mb-1">{label}</label>
-              <input type="password" required value={value} onChange={e => onChange(e.target.value)} className="border rounded px-3 py-2 w-full" />
+              <input type="password" required value={value} onChange={e => onChange(e.target.value)} className="glass-input px-3 py-2 w-full" />
             </div>
           ))}
-          <button type="submit" className="bg-gray-800 text-white py-2 rounded">변경 (변경 후 재로그인)</button>
+          <button type="submit" className="btn-liquid py-2">변경 (변경 후 재로그인)</button>
         </form>
       </section>
     </div>

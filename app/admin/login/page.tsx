@@ -27,25 +27,27 @@ export default function AdminLoginPage() {
 
   return (
     <div className="max-w-sm mx-auto mt-20">
-      <h1 className="text-2xl font-bold mb-6 text-center">관리자 로그인</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <input
-          type="password"
-          required
-          placeholder="비밀번호"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          className="border rounded px-3 py-2"
-        />
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? '로그인 중...' : '로그인'}
-        </button>
-      </form>
+      <div className="glass rounded-3xl p-8">
+        <h1 className="text-2xl font-bold mb-6 text-center">관리자 로그인</h1>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <input
+            type="password"
+            required
+            placeholder="비밀번호"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className="glass-input px-3 py-2"
+          />
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-liquid py-2.5"
+          >
+            {loading ? '로그인 중...' : '로그인'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

@@ -95,24 +95,24 @@ export default function AdminInventoryPage() {
       <h1 className="text-2xl font-bold mb-6">교구 관리</h1>
       {msg && <p className={`mb-4 text-sm ${msg.ok ? 'text-blue-700' : 'text-red-600'}`}>{msg.text}</p>}
 
-      <section className="mb-8 bg-white rounded shadow p-4">
+      <section className="mb-8 glass rounded-3xl p-5">
         <h2 className="font-semibold mb-3 text-gray-900">교구 추가 (개별)</h2>
         <form onSubmit={handleAdd} className="grid grid-cols-2 gap-3">
-          <input required placeholder="교구명" value={newName} onChange={e => setNewName(e.target.value)} className="border rounded px-3 py-2 text-gray-900 placeholder-gray-400" />
-          <input required type="number" min={1} placeholder="총수량" value={newQty} onChange={e => setNewQty(Number(e.target.value))} className="border rounded px-3 py-2 text-gray-900 placeholder-gray-400" />
-          <input placeholder="사진 URL" value={newPhoto} onChange={e => setNewPhoto(e.target.value)} className="border rounded px-3 py-2 col-span-2 text-gray-900 placeholder-gray-400" />
-          <textarea placeholder="설명" value={newDesc} onChange={e => setNewDesc(e.target.value)} className="border rounded px-3 py-2 col-span-2 h-20 text-gray-900 placeholder-gray-400" />
-          <button type="submit" className="col-span-2 bg-blue-600 text-white py-2 rounded">추가</button>
+          <input required placeholder="교구명" value={newName} onChange={e => setNewName(e.target.value)} className="glass-input px-3 py-2" />
+          <input required type="number" min={1} placeholder="총수량" value={newQty} onChange={e => setNewQty(Number(e.target.value))} className="glass-input px-3 py-2" />
+          <input placeholder="사진 URL" value={newPhoto} onChange={e => setNewPhoto(e.target.value)} className="glass-input px-3 py-2 col-span-2" />
+          <textarea placeholder="설명" value={newDesc} onChange={e => setNewDesc(e.target.value)} className="glass-input px-3 py-2 col-span-2 h-20" />
+          <button type="submit" className="col-span-2 btn-liquid py-2">추가</button>
         </form>
       </section>
 
-      <section className="mb-8 bg-white rounded shadow p-4">
+      <section className="mb-8 glass rounded-3xl p-5">
         <h2 className="font-semibold mb-3 text-gray-900">교구 일괄 업로드 (Excel 복사 → 붙여넣기)</h2>
         <div className="text-sm text-gray-600 mb-3 leading-relaxed">
           <p className="mb-1">📋 <strong>형식</strong>: Excel에서 4개 열(교구명 / 총수량 / 사진URL / 설명)을 선택해 복사 후 아래 영역에 붙여넣기</p>
           <p className="mb-1">• 한 줄에 한 교구 / 열 사이는 <strong>탭</strong> 또는 쉼표로 구분</p>
           <p>• 사진URL과 설명은 비워둬도 됩니다. 예시:</p>
-          <pre className="bg-gray-50 border rounded p-2 mt-1 text-xs text-gray-700 overflow-x-auto">{`레인보우 분수타일\t59\thttps://drive.google.com/...\t분수의 개념 이해
+          <pre className="glass-inner p-2 mt-1 text-xs text-gray-700 overflow-x-auto">{`레인보우 분수타일\t59\thttps://drive.google.com/...\t분수의 개념 이해
 분수막대\t26\t\t분수와 소수, 퍼센트
 정육면체 모형\t10`}</pre>
         </div>
@@ -120,17 +120,17 @@ export default function AdminInventoryPage() {
           placeholder="여기에 Excel 데이터 붙여넣기"
           value={bulkText}
           onChange={e => setBulkText(e.target.value)}
-          className="border rounded px-3 py-2 w-full h-40 text-sm font-mono text-gray-900 placeholder-gray-400"
+          className="glass-input px-3 py-2 w-full h-40 text-sm font-mono"
         />
 
         {parsedRows.length > 0 && (
-          <div className="mt-3 border rounded overflow-hidden">
-            <div className="bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 border-b">
+          <div className="mt-3 glass-inner overflow-hidden">
+            <div className="bg-white/50 px-3 py-2 text-sm font-medium text-gray-700 border-b border-white/60">
               미리보기: {parsedRows.length}행 {hasErrors && <span className="text-red-600 ml-2">⚠ 오류 있음</span>}
             </div>
             <div className="max-h-60 overflow-y-auto">
               <table className="w-full text-xs">
-                <thead className="bg-gray-50 text-gray-600">
+                <thead className="bg-white/50 text-gray-600">
                   <tr>
                     <th className="px-2 py-1 text-left">#</th>
                     <th className="px-2 py-1 text-left">교구명</th>
@@ -164,7 +164,7 @@ export default function AdminInventoryPage() {
         <button
           onClick={handleBulkUpload}
           disabled={parsedRows.length === 0 || hasErrors || bulkSubmitting}
-          className="mt-3 bg-green-600 text-white px-4 py-2 rounded disabled:opacity-40"
+          className="mt-3 btn-liquid-green px-5 py-2"
         >
           {bulkSubmitting ? '업로드 중...' : `${parsedRows.length}개 일괄 추가`}
         </button>
@@ -174,12 +174,12 @@ export default function AdminInventoryPage() {
         <h2 className="font-semibold mb-3 text-gray-900">교구 목록 ({equipment.length}종)</h2>
         <div className="flex flex-col gap-2">
           {equipment.map(item => (
-            <div key={item.id} className="bg-white rounded shadow p-3 flex items-center gap-3">
+            <div key={item.id} className="glass rounded-2xl p-3 flex items-center gap-3">
               <span className="flex-1 text-sm font-medium text-gray-900">{item.name}</span>
               <span className="text-sm text-gray-500">총 {item.totalQty} / 대여중 {item.rentedQty}</span>
               {editId === item.id ? (
                 <>
-                  <input type="number" min={item.rentedQty} value={editQty} onChange={e => setEditQty(Number(e.target.value))} className="border rounded w-20 px-2 py-1 text-sm text-gray-900" />
+                  <input type="number" min={item.rentedQty} value={editQty} onChange={e => setEditQty(Number(e.target.value))} className="glass-input w-20 px-2 py-1 text-sm" />
                   <button onClick={() => handleUpdate(item.id)} className="text-blue-600 text-sm">저장</button>
                   <button onClick={() => setEditId(null)} className="text-gray-400 text-sm">취소</button>
                 </>

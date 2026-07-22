@@ -154,7 +154,7 @@ function RentalNewForm() {
       <h1 className="text-2xl font-bold mb-6">교구 대여 신청</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         {/* Teacher info */}
-        <section className="flex flex-col gap-3">
+        <section className="glass rounded-3xl p-5 flex flex-col gap-3">
           <h2 className="font-semibold">신청자 정보</h2>
           <div className="grid grid-cols-1 sm:grid-cols-[9rem_1fr] gap-3">
             <div className="flex flex-col gap-1">
@@ -166,7 +166,7 @@ function RentalNewForm() {
                   setSchoolLevel(e.target.value as SchoolLevel | '')
                   setSchoolName('')
                 }}
-                className="border rounded px-3 py-2 bg-white"
+                className="glass-input px-3 py-2"
               >
                 <option value="">선택</option>
                 {SCHOOL_LEVELS.map(level => (
@@ -181,7 +181,7 @@ function RentalNewForm() {
                 value={schoolName}
                 onChange={e => setSchoolName(e.target.value)}
                 disabled={!schoolLevel}
-                className="border rounded px-3 py-2 bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                className="glass-input px-3 py-2"
               >
                 <option value="">{schoolLevel ? '학교를 선택하세요' : '학교급을 먼저 선택하세요'}</option>
                 {schoolLevel && SCHOOLS[schoolLevel].map(name => (
@@ -203,7 +203,7 @@ function RentalNewForm() {
                   type={type ?? 'text'}
                   value={value}
                   onChange={e => onChange(e.target.value)}
-                  className="border rounded px-3 py-2"
+                  className="glass-input px-3 py-2"
                 />
               </div>
             ))}
@@ -211,7 +211,7 @@ function RentalNewForm() {
         </section>
 
         {/* Pickup method */}
-        <section>
+        <section className="glass rounded-3xl p-5">
           <h2 className="font-semibold mb-2">수령 방법</h2>
           <div className="flex gap-4">
             {(['direct', 'delivery'] as PickupMethod[]).map(method => (
@@ -232,7 +232,7 @@ function RentalNewForm() {
         </section>
 
         {/* Equipment selection */}
-        <section>
+        <section className="glass rounded-3xl p-5">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h2 className="font-semibold">교구 선택</h2>
             <input
@@ -240,10 +240,10 @@ function RentalNewForm() {
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="교구 이름 검색"
-              className="border rounded px-3 py-1.5 text-sm w-52"
+              className="glass-input px-3 py-1.5 text-sm w-52"
             />
           </div>
-          <div className="flex flex-col gap-2 max-h-56 overflow-y-auto border rounded p-3">
+          <div className="glass-inner flex flex-col gap-2 max-h-56 overflow-y-auto p-3">
             {visibleEquipment.length === 0 && (
               <p className="text-sm text-gray-500">검색 결과가 없습니다.</p>
             )}
@@ -281,7 +281,7 @@ function RentalNewForm() {
                         const qty = parseInt(e.target.value, 10)
                         if (!isNaN(qty)) handleQtyChange(item.name, qty, item.availableQty)
                       }}
-                      className="w-16 border rounded px-2 py-1 text-sm"
+                      className="glass-input w-16 px-2 py-1 text-sm"
                     />
                   )}
                   {soldOut && item.nextAvailableDate && (
@@ -297,7 +297,7 @@ function RentalNewForm() {
         </section>
 
         {/* Dates */}
-        <section className="flex flex-col gap-3">
+        <section className="glass rounded-3xl p-5 flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">수령 가능일 (최소: {minAvailableFrom})</label>
             <input
@@ -306,7 +306,7 @@ function RentalNewForm() {
               min={minAvailableFrom}
               value={availableFrom}
               onChange={e => handleAvailableFromChange(e.target.value)}
-              className="border rounded px-3 py-2"
+              className="glass-input px-3 py-2"
             />
             {availableFromWarning && <p className="text-red-600 text-xs">{availableFromWarning}</p>}
             <p className="text-xs text-gray-500">
@@ -324,7 +324,7 @@ function RentalNewForm() {
               max={availableFrom ? addDays(availableFrom, 14) : ''}
               value={returnDue}
               onChange={e => handleReturnDueChange(e.target.value)}
-              className="border rounded px-3 py-2"
+              className="glass-input px-3 py-2"
             />
             {returnDueWarning && <p className="text-red-600 text-xs">{returnDueWarning}</p>}
           </div>
@@ -335,7 +335,7 @@ function RentalNewForm() {
         <button
           type="submit"
           disabled={submitting}
-          className="bg-blue-600 text-white py-3 rounded font-semibold hover:bg-blue-700 disabled:opacity-50"
+          className="btn-liquid py-3 text-lg"
         >
           {submitting ? '신청 중...' : '대여 신청하기'}
         </button>

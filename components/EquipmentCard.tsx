@@ -8,8 +8,8 @@ export function EquipmentCard({ item }: { item: Equipment }) {
   const content = (
     <>
       {item.photoUrl && (
-        <div className="relative w-full h-40">
-          <Image src={item.photoUrl} alt={item.name} fill className="object-contain rounded" unoptimized />
+        <div className="relative w-full h-40 bg-white/80 rounded-2xl overflow-hidden">
+          <Image src={item.photoUrl} alt={item.name} fill className="object-contain p-1" unoptimized />
         </div>
       )}
       <h2 className="font-bold text-lg">{item.name}</h2>
@@ -31,7 +31,7 @@ export function EquipmentCard({ item }: { item: Equipment }) {
     return (
       <Link
         href={`/rental/new?equipment=${encodeURIComponent(item.name)}`}
-        className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 hover:shadow-lg hover:ring-2 hover:ring-blue-300 transition"
+        className="glass rounded-3xl p-4 flex flex-col gap-2 transition hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-blue-300/60"
       >
         {content}
       </Link>
@@ -39,7 +39,7 @@ export function EquipmentCard({ item }: { item: Equipment }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
+    <div className="glass rounded-3xl p-4 flex flex-col gap-2 opacity-80">
       {content}
     </div>
   )
