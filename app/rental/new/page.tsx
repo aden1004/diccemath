@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { Equipment, PickupMethod, CreateRentalRequest } from '@/types'
 import { addDays, getMinAvailableFrom, getDefaultReturnDue, isWeekend } from '@/lib/date-utils'
+import { SCHOOLS, SCHOOL_LEVELS, type SchoolLevel } from '@/lib/schools'
 
 export default function RentalNewPage() {
   return (
@@ -15,13 +16,13 @@ export default function RentalNewPage() {
 function RentalNewForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  // 홈 화면 교구 카드를 눌러 넘어온 경우: 해당 교구 1개 선택 + 직접 수령 고정
+  // 홈 화면 교구 카드를 눌러 넘어온 경우: 해당 교구 1개 선택 (수령 방법 기본값은 직접 수령)
   const preselectName = searchParams.get('equipment')
-  const lockDirect = !!preselectName
 
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [selected, setSelected] = useState<Record<string, number>>({})
   const [query, setQuery] = useState('')
+  const [schoolLevel, setSchoolLevel] = useState<SchoolLevel | ''>('')
   const [schoolName, setSchoolName] = useState('')
   const [teacherName, setTeacherName] = useState('')
   const [phone, setPhone] = useState('')
@@ -61,16 +62,19 @@ function RentalNewForm() {
     }
   }, [availableFrom, minAvailableFrom])
 
-  // 택배로 바꾸면 택배불가 교구는 선택 해제
+  // 택배로 바꿀 때 택배불가 교구가 선택되어 있으면 알림을 띄우고 직접 수령을 유지
   function handleMethodChange(method: PickupMethod) {
-    setPickupMethod(method)
     if (method === 'delivery') {
       const blocked = new Set(equipment.filter(e => e.noDelivery).map(e => e.name))
-      setSelected(prev => {
-        const entries = Object.entries(prev).filter(([name]) => !blocked.has(name))
-        return entries.length === Object.keys(prev).length ? prev : Object.fromEntries(entries)
-      })
+      const blockedSelected = Object.keys(selected).filter(name => blocked.has(name))
+      if (blockedSelected.length > 0) {
+        alert(
+          `아래 교구는 택배 수령이 불가하여 직접 수령으로만 신청할 수 있습니다.\n\n- ${blockedSelected.join('\n- ')}\n\n택배를 원하시면 해당 교구의 선택을 해제해주세요.`
+        )
+        return
+      }
     }
+    setPickupMethod(method)
   }
 
   function handleAvailableFromChange(value: string) {
@@ -152,52 +156,77 @@ function RentalNewForm() {
         {/* Teacher info */}
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">신청자 정보</h2>
-          {[
-            { label: '학교명', value: schoolName, onChange: setSchoolName },
-            { label: '선생님 성함', value: teacherName, onChange: setTeacherName },
-            { label: '핸드폰', value: phone, onChange: setPhone, type: 'tel' },
-            { label: '이메일', value: email, onChange: setEmail, type: 'email' },
-          ].map(({ label, value, onChange, type }) => (
-            <div key={label} className="flex flex-col gap-1">
-              <label className="text-sm font-medium">{label}</label>
-              <input
+          <div className="grid grid-cols-1 sm:grid-cols-[9rem_1fr] gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">학교급</label>
+              <select
                 required
-                type={type ?? 'text'}
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                className="border rounded px-3 py-2"
-              />
+                value={schoolLevel}
+                onChange={e => {
+                  setSchoolLevel(e.target.value as SchoolLevel | '')
+                  setSchoolName('')
+                }}
+                className="border rounded px-3 py-2 bg-white"
+              >
+                <option value="">선택</option>
+                {SCHOOL_LEVELS.map(level => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
             </div>
-          ))}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">학교명</label>
+              <select
+                required
+                value={schoolName}
+                onChange={e => setSchoolName(e.target.value)}
+                disabled={!schoolLevel}
+                className="border rounded px-3 py-2 bg-white disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">{schoolLevel ? '학교를 선택하세요' : '학교급을 먼저 선택하세요'}</option>
+                {schoolLevel && SCHOOLS[schoolLevel].map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1.8fr] gap-3">
+            {[
+              { label: '선생님 성함', value: teacherName, onChange: setTeacherName },
+              { label: '핸드폰', value: phone, onChange: setPhone, type: 'tel' },
+              { label: '이메일', value: email, onChange: setEmail, type: 'email' },
+            ].map(({ label, value, onChange, type }) => (
+              <div key={label} className="flex flex-col gap-1">
+                <label className="text-sm font-medium">{label}</label>
+                <input
+                  required
+                  type={type ?? 'text'}
+                  value={value}
+                  onChange={e => onChange(e.target.value)}
+                  className="border rounded px-3 py-2"
+                />
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Pickup method */}
         <section>
           <h2 className="font-semibold mb-2">수령 방법</h2>
           <div className="flex gap-4">
-            {(['direct', 'delivery'] as PickupMethod[]).map(method => {
-              const disabled = lockDirect && method === 'delivery'
-              return (
-                <label
-                  key={method}
-                  className={`flex items-center gap-2 ${disabled ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <input
-                    type="radio"
-                    value={method}
-                    checked={pickupMethod === method}
-                    disabled={disabled}
-                    onChange={() => handleMethodChange(method)}
-                  />
-                  {method === 'direct' ? '직접 수령' : '택배'}
-                </label>
-              )
-            })}
+            {(['direct', 'delivery'] as PickupMethod[]).map(method => (
+              <label key={method} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value={method}
+                  checked={pickupMethod === method}
+                  onChange={() => handleMethodChange(method)}
+                />
+                {method === 'direct' ? '직접 수령' : '택배'}
+              </label>
+            ))}
           </div>
-          {lockDirect && (
-            <p className="text-xs text-gray-500 mt-1">목록에서 교구를 선택해 신청하는 경우 직접 수령으로 진행됩니다.</p>
-          )}
-          {!lockDirect && pickupMethod === 'delivery' && (
+          {pickupMethod === 'delivery' && (
             <p className="text-xs text-gray-500 mt-1">택배 불가 교구는 직접 수령 시에만 선택할 수 있습니다.</p>
           )}
         </section>
@@ -214,7 +243,7 @@ function RentalNewForm() {
               className="border rounded px-3 py-1.5 text-sm w-52"
             />
           </div>
-          <div className="flex flex-col gap-2 max-h-80 overflow-y-auto border rounded p-3">
+          <div className="flex flex-col gap-2 max-h-56 overflow-y-auto border rounded p-3">
             {visibleEquipment.length === 0 && (
               <p className="text-sm text-gray-500">검색 결과가 없습니다.</p>
             )}
