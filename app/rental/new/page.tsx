@@ -1,11 +1,24 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { Equipment, PickupMethod, CreateRentalRequest } from '@/types'
-import { addDays, getMinAvailableFrom, getDefaultReturnDue } from '@/lib/date-utils'
+import { addDays, getMinAvailableFrom, getDefaultReturnDue, isWeekend } from '@/lib/date-utils'
 
 export default function RentalNewPage() {
+  return (
+    <Suspense fallback={null}>
+      <RentalNewForm />
+    </Suspense>
+  )
+}
+
+function RentalNewForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // 홈 화면 교구 카드를 눌러 넘어온 경우: 해당 교구 1개 선택 + 직접 수령 고정
+  const preselectName = searchParams.get('equipment')
+  const lockDirect = !!preselectName
+
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [selected, setSelected] = useState<Record<string, number>>({})
   const [query, setQuery] = useState('')
@@ -16,6 +29,8 @@ export default function RentalNewPage() {
   const [pickupMethod, setPickupMethod] = useState<PickupMethod>('direct')
   const [availableFrom, setAvailableFrom] = useState('')
   const [returnDue, setReturnDue] = useState('')
+  const [availableFromWarning, setAvailableFromWarning] = useState('')
+  const [returnDueWarning, setReturnDueWarning] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -27,9 +42,15 @@ export default function RentalNewPage() {
   useEffect(() => {
     fetch('/api/inventory')
       .then(r => { if (!r.ok) throw new Error('Failed'); return r.json() })
-      .then(setEquipment)
+      .then((list: Equipment[]) => {
+        setEquipment(list)
+        if (preselectName) {
+          const eq = list.find(e => e.name === preselectName)
+          if (eq && eq.availableQty > 0) setSelected({ [eq.name]: 1 })
+        }
+      })
       .catch(() => setError('교구 목록을 불러오지 못했습니다.'))
-  }, [])
+  }, [preselectName])
 
   useEffect(() => {
     if (availableFrom >= minAvailableFrom) {
@@ -50,6 +71,24 @@ export default function RentalNewPage() {
         return entries.length === Object.keys(prev).length ? prev : Object.fromEntries(entries)
       })
     }
+  }
+
+  function handleAvailableFromChange(value: string) {
+    if (value && isWeekend(value)) {
+      setAvailableFromWarning('토요일·일요일은 수령일로 선택할 수 없습니다.')
+      return
+    }
+    setAvailableFromWarning('')
+    setAvailableFrom(value)
+  }
+
+  function handleReturnDueChange(value: string) {
+    if (value && isWeekend(value)) {
+      setReturnDueWarning('토요일·일요일은 반납일로 선택할 수 없습니다.')
+      return
+    }
+    setReturnDueWarning('')
+    setReturnDue(value)
   }
 
   // 가나다 정렬 + 검색 필터 (한 글자만 입력해도 포함 검색)
@@ -136,19 +175,29 @@ export default function RentalNewPage() {
         <section>
           <h2 className="font-semibold mb-2">수령 방법</h2>
           <div className="flex gap-4">
-            {(['direct', 'delivery'] as PickupMethod[]).map(method => (
-              <label key={method} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  value={method}
-                  checked={pickupMethod === method}
-                  onChange={() => handleMethodChange(method)}
-                />
-                {method === 'direct' ? '직접 수령' : '택배'}
-              </label>
-            ))}
+            {(['direct', 'delivery'] as PickupMethod[]).map(method => {
+              const disabled = lockDirect && method === 'delivery'
+              return (
+                <label
+                  key={method}
+                  className={`flex items-center gap-2 ${disabled ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <input
+                    type="radio"
+                    value={method}
+                    checked={pickupMethod === method}
+                    disabled={disabled}
+                    onChange={() => handleMethodChange(method)}
+                  />
+                  {method === 'direct' ? '직접 수령' : '택배'}
+                </label>
+              )
+            })}
           </div>
-          {pickupMethod === 'delivery' && (
+          {lockDirect && (
+            <p className="text-xs text-gray-500 mt-1">목록에서 교구를 선택해 신청하는 경우 직접 수령으로 진행됩니다.</p>
+          )}
+          {!lockDirect && pickupMethod === 'delivery' && (
             <p className="text-xs text-gray-500 mt-1">택배 불가 교구는 직접 수령 시에만 선택할 수 있습니다.</p>
           )}
         </section>
@@ -227,11 +276,12 @@ export default function RentalNewPage() {
               required
               min={minAvailableFrom}
               value={availableFrom}
-              onChange={e => setAvailableFrom(e.target.value)}
+              onChange={e => handleAvailableFromChange(e.target.value)}
               className="border rounded px-3 py-2"
             />
+            {availableFromWarning && <p className="text-red-600 text-xs">{availableFromWarning}</p>}
             <p className="text-xs text-gray-500">
-              직접 수령은 신청일 +2일, 택배는 배송 기간을 고려해 +5일부터 가능하며, 사이에 주말이 끼면 2일이 추가됩니다.
+              직접 수령은 신청일 +2일, 택배는 배송 기간을 고려해 +5일부터 가능하며, 사이에 주말이 끼면 2일이 추가됩니다. 토·일은 선택할 수 없습니다.
             </p>
           </div>
           <div className="flex flex-col gap-1">
@@ -244,9 +294,10 @@ export default function RentalNewPage() {
               min={availableFrom ? addDays(availableFrom, 1) : ''}
               max={availableFrom ? addDays(availableFrom, 14) : ''}
               value={returnDue}
-              onChange={e => setReturnDue(e.target.value)}
+              onChange={e => handleReturnDueChange(e.target.value)}
               className="border rounded px-3 py-2"
             />
+            {returnDueWarning && <p className="text-red-600 text-xs">{returnDueWarning}</p>}
           </div>
         </section>
 

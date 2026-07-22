@@ -3,9 +3,21 @@ import {
   getDefaultReturnDue,
   isValidAvailableFrom,
   isValidReturnDue,
+  isWeekend,
   addDays,
   formatDate,
 } from '@/lib/date-utils'
+
+describe('isWeekend', () => {
+  it('returns true for Saturday and Sunday', () => {
+    expect(isWeekend('2026-04-25')).toBe(true) // 토
+    expect(isWeekend('2026-04-26')).toBe(true) // 일
+  })
+  it('returns false for weekdays', () => {
+    expect(isWeekend('2026-04-24')).toBe(false) // 금
+    expect(isWeekend('2026-04-27')).toBe(false) // 월
+  })
+})
 
 describe('addDays', () => {
   it('adds days to a date string', () => {
@@ -34,6 +46,10 @@ describe('getMinAvailableFrom', () => {
     // 목요일 신청 → +5 = 화요일, 사이에 토·일 포함 → +2 = 목요일
     expect(getMinAvailableFrom('2026-04-23', 'delivery')).toBe('2026-04-30')
   })
+  it('rolls forward to the next weekday when the minimum lands on a weekend', () => {
+    // 토요일 신청 택배 → +5 = 목요일, 주말 포함 → +2 = 토요일 → 월요일로 이월
+    expect(getMinAvailableFrom('2026-04-25', 'delivery')).toBe('2026-05-04')
+  })
 })
 
 describe('getDefaultReturnDue', () => {
@@ -52,18 +68,27 @@ describe('isValidAvailableFrom', () => {
     expect(isValidAvailableFrom('2026-04-25', '2026-04-23', 'direct')).toBe(false)
     expect(isValidAvailableFrom('2026-04-26', '2026-04-23', 'direct')).toBe(false)
   })
+  it('rejects weekend dates even after min', () => {
+    // 최소일(04-27) 이후지만 토요일
+    expect(isValidAvailableFrom('2026-05-02', '2026-04-23', 'direct')).toBe(false)
+  })
 })
 
 describe('isValidReturnDue', () => {
-  it('accepts date between availableFrom+1 and availableFrom+14', () => {
-    expect(isValidReturnDue('2026-05-01', '2026-04-25')).toBe(true)
-    expect(isValidReturnDue('2026-05-09', '2026-04-25')).toBe(true)
+  // availableFrom 2026-04-27(월), 반납 가능 범위: 04-28 ~ 05-11
+  it('accepts weekday between availableFrom+1 and availableFrom+14', () => {
+    expect(isValidReturnDue('2026-05-01', '2026-04-27')).toBe(true)
+    expect(isValidReturnDue('2026-05-11', '2026-04-27')).toBe(true)
   })
   it('rejects date equal to availableFrom', () => {
-    expect(isValidReturnDue('2026-04-25', '2026-04-25')).toBe(false)
+    expect(isValidReturnDue('2026-04-27', '2026-04-27')).toBe(false)
   })
   it('rejects date after availableFrom+14', () => {
-    expect(isValidReturnDue('2026-05-10', '2026-04-25')).toBe(false)
+    expect(isValidReturnDue('2026-05-12', '2026-04-27')).toBe(false)
+  })
+  it('rejects weekend dates within range', () => {
+    expect(isValidReturnDue('2026-05-02', '2026-04-27')).toBe(false) // 토
+    expect(isValidReturnDue('2026-05-03', '2026-04-27')).toBe(false) // 일
   })
 })
 
