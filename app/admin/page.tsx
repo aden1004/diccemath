@@ -48,8 +48,21 @@ export default function AdminDashboard() {
           {rentals.map(rental => (
             <div key={rental.rentalId} className="bg-white rounded shadow p-4 flex justify-between items-start">
               <div>
-                <p className="font-bold">{rental.rentalId} · {rental.schoolName}</p>
-                <p className="text-sm text-gray-500">{rental.teacherName} · {rental.phone}</p>
+                <p className="font-bold">
+                  {rental.rentalId} · {rental.schoolName}
+                  <span
+                    className={`ml-2 align-middle text-xs px-2 py-0.5 rounded font-medium ${
+                      rental.pickupMethod === 'delivery'
+                        ? 'bg-orange-100 text-orange-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {rental.pickupMethod === 'delivery' ? '택배' : '직접 수령'}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-500">
+                  {rental.teacherName} · 📞 {rental.phone} · ✉️ {rental.email}
+                </p>
                 <p className="text-sm">수령일: {rental.availableFrom} / 반납예정: {rental.returnDue}</p>
                 <p className="text-sm text-gray-600">{rental.items.map(i => `${i.equipmentName} ${i.quantity}개`).join(', ')}</p>
                 {actionMsg[rental.rentalId] && (
