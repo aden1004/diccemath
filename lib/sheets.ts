@@ -48,7 +48,7 @@ async function updateRow(range: string, values: (string | number)[]): Promise<vo
 }
 
 // ── Equipment (Sheet1: 교구목록) ────────────────────────────────────────────
-// Columns: A=순번, B=교구명, C=총수량, D=대여중수량, E=사진URL, F=설명
+// Columns: A=순번, B=교구명, C=총수량, D=대여중수량, E=사진URL, F=설명, H=택배불가
 
 function rowToEquipment(row: string[], idx: number): Equipment {
   return {
@@ -59,11 +59,12 @@ function rowToEquipment(row: string[], idx: number): Equipment {
     photoUrl: row[4] || null,
     description: row[5] ?? '',
     availableQty: parseInt(row[2] ?? '0', 10) - parseInt(row[3] ?? '0', 10),
+    noDelivery: (row[7] ?? '').trim() !== '',
   }
 }
 
 export async function getAllEquipment(): Promise<Equipment[]> {
-  const rows = await getRange('교구목록!A2:F')
+  const rows = await getRange('교구목록!A2:H')
   return rows.filter(r => r[1]).map(rowToEquipment)
 }
 
@@ -248,6 +249,22 @@ export async function addRentalItems(
     valueInputOption: 'RAW',
     requestBody: { values: items.map(item => [rentalId, item.equipmentName, item.quantity]) },
   })
+}
+
+// 교구별로 대여중(active/extended) 건들의 가장 빠른 반납 예정일
+export async function getEarliestReturnDueByEquipment(): Promise<Record<string, string>> {
+  const rentals = await getAllActiveRentals()
+  if (rentals.length === 0) return {}
+  const dueById = new Map(rentals.map(r => [r.rentalId, r.returnDue]))
+  const rows = await getRange('대여교구상세!A2:C')
+  const earliest: Record<string, string> = {}
+  for (const r of rows) {
+    const due = dueById.get(r[0] ?? '')
+    const name = r[1]
+    if (!due || !name) continue
+    if (!earliest[name] || due < earliest[name]) earliest[name] = due
+  }
+  return earliest
 }
 
 export async function getRentalItems(rentalId: string): Promise<RentalItem[]> {

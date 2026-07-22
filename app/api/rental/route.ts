@@ -54,6 +54,12 @@ export async function POST(req: Request) {
           { status: 409 }
         )
       }
+      if (pickupMethod === 'delivery' && eq.noDelivery) {
+        return NextResponse.json(
+          { error: `택배 수령이 불가한 교구입니다 (직접 수령만 가능): ${item.equipmentName}` },
+          { status: 400 }
+        )
+      }
     }
 
     const rentalId = await createRental({

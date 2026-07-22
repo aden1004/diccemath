@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
-import { getAllEquipment, addEquipment } from '@/lib/sheets'
+import { getAllEquipment, addEquipment, getEarliestReturnDueByEquipment } from '@/lib/sheets'
 import { requireAdmin } from '@/lib/auth'
 
 export async function GET() {
   try {
     const equipment = await getAllEquipment()
-    return NextResponse.json(equipment)
+    const hasSoldOut = equipment.some(e => e.availableQty <= 0)
+    const earliestDue = hasSoldOut ? await getEarliestReturnDueByEquipment() : {}
+    const result = equipment.map(e =>
+      e.availableQty <= 0 ? { ...e, nextAvailableDate: earliestDue[e.name] ?? null } : e
+    )
+    return NextResponse.json(result)
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: '교구 목록을 불러오지 못했습니다.' }, { status: 500 })

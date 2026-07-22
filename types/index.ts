@@ -6,6 +6,8 @@ export interface Equipment {
   photoUrl: string | null
   description: string
   availableQty: number // computed: totalQty - rentedQty
+  noDelivery: boolean // 교구목록 H열 '택배불가' 표시 여부
+  nextAvailableDate?: string | null // 전량 대여중일 때 가장 빠른 반납 예정일
 }
 
 export type PickupMethod = 'direct' | 'delivery'

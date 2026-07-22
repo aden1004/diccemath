@@ -5,7 +5,7 @@ import { EquipmentCard } from '@/components/EquipmentCard'
 export const revalidate = 60
 
 export default async function HomePage() {
-  const equipment = await getAllEquipment()
+  const equipment = (await getAllEquipment()).sort((a, b) => a.name.localeCompare(b.name, 'ko'))
 
   return (
     <div>

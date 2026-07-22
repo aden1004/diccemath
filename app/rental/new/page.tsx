@@ -8,6 +8,7 @@ export default function RentalNewPage() {
   const router = useRouter()
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [selected, setSelected] = useState<Record<string, number>>({})
+  const [query, setQuery] = useState('')
   const [schoolName, setSchoolName] = useState('')
   const [teacherName, setTeacherName] = useState('')
   const [phone, setPhone] = useState('')
@@ -38,6 +39,26 @@ export default function RentalNewPage() {
       setReturnDue(getDefaultReturnDue(minAvailableFrom))
     }
   }, [availableFrom, minAvailableFrom])
+
+  // 택배로 바꾸면 택배불가 교구는 선택 해제
+  function handleMethodChange(method: PickupMethod) {
+    setPickupMethod(method)
+    if (method === 'delivery') {
+      const blocked = new Set(equipment.filter(e => e.noDelivery).map(e => e.name))
+      setSelected(prev => {
+        const entries = Object.entries(prev).filter(([name]) => !blocked.has(name))
+        return entries.length === Object.keys(prev).length ? prev : Object.fromEntries(entries)
+      })
+    }
+  }
+
+  // 가나다 정렬 + 검색 필터 (한 글자만 입력해도 포함 검색)
+  const visibleEquipment = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return equipment
+      .filter(item => !q || item.name.toLowerCase().includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [equipment, query])
 
   function handleQtyChange(name: string, qty: number, max: number) {
     if (qty <= 0) {
@@ -89,45 +110,6 @@ export default function RentalNewPage() {
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">교구 대여 신청</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        {/* Equipment selection */}
-        <section>
-          <h2 className="font-semibold mb-3">교구 선택</h2>
-          <div className="flex flex-col gap-2 max-h-80 overflow-y-auto border rounded p-3">
-            {equipment.map(item => (
-              <div key={item.id} className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id={`eq-${item.id}`}
-                  checked={item.name in selected}
-                  disabled={item.availableQty === 0}
-                  onChange={e => {
-                    if (e.target.checked) handleQtyChange(item.name, 1, item.availableQty)
-                    else handleQtyChange(item.name, 0, item.availableQty)
-                  }}
-                />
-                <label htmlFor={`eq-${item.id}`} className="flex-1 text-sm">
-                  {item.name}
-                  {item.availableQty === 0 && <span className="ml-2 text-gray-400">(대여불가)</span>}
-                </label>
-                {item.name in selected && (
-                  <input
-                    type="number"
-                    min={1}
-                    max={item.availableQty}
-                    value={selected[item.name]}
-                    onChange={e => {
-                      const qty = parseInt(e.target.value, 10)
-                      if (!isNaN(qty)) handleQtyChange(item.name, qty, item.availableQty)
-                    }}
-                    className="w-16 border rounded px-2 py-1 text-sm"
-                  />
-                )}
-                <span className="text-xs text-gray-500">가용 {item.availableQty}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* Teacher info */}
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">신청자 정보</h2>
@@ -160,11 +142,79 @@ export default function RentalNewPage() {
                   type="radio"
                   value={method}
                   checked={pickupMethod === method}
-                  onChange={() => setPickupMethod(method)}
+                  onChange={() => handleMethodChange(method)}
                 />
                 {method === 'direct' ? '직접 수령' : '택배'}
               </label>
             ))}
+          </div>
+          {pickupMethod === 'delivery' && (
+            <p className="text-xs text-gray-500 mt-1">택배 불가 교구는 직접 수령 시에만 선택할 수 있습니다.</p>
+          )}
+        </section>
+
+        {/* Equipment selection */}
+        <section>
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <h2 className="font-semibold">교구 선택</h2>
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="교구 이름 검색"
+              className="border rounded px-3 py-1.5 text-sm w-52"
+            />
+          </div>
+          <div className="flex flex-col gap-2 max-h-80 overflow-y-auto border rounded p-3">
+            {visibleEquipment.length === 0 && (
+              <p className="text-sm text-gray-500">검색 결과가 없습니다.</p>
+            )}
+            {visibleEquipment.map(item => {
+              const soldOut = item.availableQty === 0
+              const deliveryBlocked = pickupMethod === 'delivery' && item.noDelivery
+              const disabled = soldOut || deliveryBlocked
+              return (
+                <div key={item.id} className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id={`eq-${item.id}`}
+                    checked={item.name in selected}
+                    disabled={disabled}
+                    onChange={e => {
+                      if (e.target.checked) handleQtyChange(item.name, 1, item.availableQty)
+                      else handleQtyChange(item.name, 0, item.availableQty)
+                    }}
+                  />
+                  <label
+                    htmlFor={`eq-${item.id}`}
+                    className={`flex-1 text-sm ${disabled ? 'text-gray-400' : ''}`}
+                  >
+                    {item.name}
+                    {item.noDelivery && <span className="ml-2 text-orange-500 text-xs">택배 불가</span>}
+                    {soldOut && <span className="ml-2 text-gray-400">(대여불가)</span>}
+                  </label>
+                  {item.name in selected && (
+                    <input
+                      type="number"
+                      min={1}
+                      max={item.availableQty}
+                      value={selected[item.name]}
+                      onChange={e => {
+                        const qty = parseInt(e.target.value, 10)
+                        if (!isNaN(qty)) handleQtyChange(item.name, qty, item.availableQty)
+                      }}
+                      className="w-16 border rounded px-2 py-1 text-sm"
+                    />
+                  )}
+                  {soldOut && item.nextAvailableDate && (
+                    <span className="text-xs text-amber-600 whitespace-nowrap">
+                      {item.nextAvailableDate} 이후 대여 가능 예정
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-500 whitespace-nowrap">가용 {item.availableQty}</span>
+                </div>
+              )
+            })}
           </div>
         </section>
 
@@ -180,6 +230,9 @@ export default function RentalNewPage() {
               onChange={e => setAvailableFrom(e.target.value)}
               className="border rounded px-3 py-2"
             />
+            <p className="text-xs text-gray-500">
+              직접 수령은 신청일 +2일, 택배는 배송 기간을 고려해 +5일부터 가능하며, 사이에 주말이 끼면 2일이 추가됩니다.
+            </p>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">

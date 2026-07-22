@@ -15,11 +15,24 @@ describe('addDays', () => {
 })
 
 describe('getMinAvailableFrom', () => {
-  it('returns appliedDate +2 for direct pickup', () => {
-    expect(getMinAvailableFrom('2026-04-23', 'direct')).toBe('2026-04-25')
+  // 2026-04-20 = 월요일, 2026-04-23 = 목요일, 2026-04-26 = 일요일
+  it('returns appliedDate +2 for direct pickup when no weekend in between', () => {
+    // 월요일 신청 → 화·수 사이 주말 없음 → 수요일
+    expect(getMinAvailableFrom('2026-04-20', 'direct')).toBe('2026-04-22')
   })
-  it('returns appliedDate +3 for delivery', () => {
-    expect(getMinAvailableFrom('2026-04-23', 'delivery')).toBe('2026-04-26')
+  it('adds 2 days for direct pickup when a weekend falls in between', () => {
+    // 목요일 신청 → +2 = 토요일, 금~토 사이에 토요일 포함 → +2 = 월요일
+    expect(getMinAvailableFrom('2026-04-23', 'direct')).toBe('2026-04-27')
+  })
+  it('returns appliedDate +5 for delivery when no weekend in between', () => {
+    // 일요일 신청 → 월~금 사이 주말 없음 → 금요일
+    expect(getMinAvailableFrom('2026-04-26', 'delivery')).toBe('2026-05-01')
+  })
+  it('adds 2 days for delivery when a weekend falls in between', () => {
+    // 월요일 신청 → +5 = 토요일, 주말 포함 → +2 = 다음 주 월요일
+    expect(getMinAvailableFrom('2026-04-20', 'delivery')).toBe('2026-04-27')
+    // 목요일 신청 → +5 = 화요일, 사이에 토·일 포함 → +2 = 목요일
+    expect(getMinAvailableFrom('2026-04-23', 'delivery')).toBe('2026-04-30')
   })
 })
 
@@ -31,11 +44,13 @@ describe('getDefaultReturnDue', () => {
 
 describe('isValidAvailableFrom', () => {
   it('accepts date on or after min', () => {
-    expect(isValidAvailableFrom('2026-04-25', '2026-04-23', 'direct')).toBe(true)
+    // 목요일 신청 직접 수령 → 최소 2026-04-27(월)
+    expect(isValidAvailableFrom('2026-04-27', '2026-04-23', 'direct')).toBe(true)
     expect(isValidAvailableFrom('2026-04-28', '2026-04-23', 'direct')).toBe(true)
   })
   it('rejects date before min', () => {
-    expect(isValidAvailableFrom('2026-04-24', '2026-04-23', 'direct')).toBe(false)
+    expect(isValidAvailableFrom('2026-04-25', '2026-04-23', 'direct')).toBe(false)
+    expect(isValidAvailableFrom('2026-04-26', '2026-04-23', 'direct')).toBe(false)
   })
 })
 
