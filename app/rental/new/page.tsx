@@ -157,7 +157,7 @@ function RentalNewForm() {
         <section className="glass rounded-3xl p-5 flex flex-col gap-3">
           <h2 className="font-semibold">신청자 정보</h2>
           <div className="grid grid-cols-1 sm:grid-cols-[9rem_1fr] gap-3">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 min-w-0">
               <label className="text-sm font-medium">학교급</label>
               <select
                 required
@@ -174,7 +174,7 @@ function RentalNewForm() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 min-w-0">
               <label className="text-sm font-medium">학교명</label>
               <select
                 required
@@ -196,14 +196,14 @@ function RentalNewForm() {
               { label: '핸드폰', value: phone, onChange: setPhone, type: 'tel' },
               { label: '이메일', value: email, onChange: setEmail, type: 'email' },
             ].map(({ label, value, onChange, type }) => (
-              <div key={label} className="flex flex-col gap-1">
+              <div key={label} className="flex flex-col gap-1 min-w-0">
                 <label className="text-sm font-medium">{label}</label>
                 <input
                   required
                   type={type ?? 'text'}
                   value={value}
                   onChange={e => onChange(e.target.value)}
-                  className="glass-input px-3 py-2"
+                  className="glass-input px-3 py-2 w-full min-w-0"
                 />
               </div>
             ))}
