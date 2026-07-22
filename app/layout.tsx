@@ -15,6 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/" className="text-xl font-bold drop-shadow-sm">대구수학체험센터 교구 대여</Link>
         </header>
         <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
+        <footer className="text-center text-sm text-gray-500 py-8">
+          made by Aden
+        </footer>
       </body>
     </html>
   )
