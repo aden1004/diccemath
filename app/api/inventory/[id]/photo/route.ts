@@ -10,7 +10,8 @@ const ALLOWED = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  // Blob 인증: 신형 연결은 BLOB_STORE_ID + Vercel OIDC 토큰(자동), 구형은 BLOB_READ_WRITE_TOKEN
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
     return NextResponse.json({ error: '이미지 저장소가 설정되지 않았습니다. Vercel 프로젝트에 Blob 스토어를 연결한 뒤 재배포하세요.' }, { status: 503 })
   }
   try {
