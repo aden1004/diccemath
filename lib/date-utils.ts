@@ -68,3 +68,11 @@ export function isValidReturnDue(returnDue: string, availableFrom: string): bool
   const max = addDays(availableFrom, 14)
   return returnDue >= min && returnDue <= max && !isWeekend(returnDue)
 }
+
+// 휴대폰 번호 표시 형식: 숫자만 추출 후 010-1234-5678 형태로 하이픈 삽입 (입력 중 부분 문자열도 처리)
+export function formatPhone(input: string): string {
+  const d = normalizePhone(input).slice(0, 11)
+  if (d.length <= 3) return d
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`
+}

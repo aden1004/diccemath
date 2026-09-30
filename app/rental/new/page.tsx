@@ -2,8 +2,9 @@
 import { Suspense, useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { Equipment, PickupMethod, CreateRentalRequest } from '@/types'
-import { addDays, getMinAvailableFrom, getDefaultReturnDue, isWeekend, toKSTDate } from '@/lib/date-utils'
-import { SCHOOLS, SCHOOL_LEVELS, type SchoolLevel } from '@/lib/schools'
+import { addDays, getMinAvailableFrom, getDefaultReturnDue, isWeekend, toKSTDate, formatPhone } from '@/lib/date-utils'
+import { ALL_SCHOOLS } from '@/lib/schools'
+import { SchoolCombobox } from '@/components/SchoolCombobox'
 import { getCart, clearCart } from '@/lib/cart'
 import { EquipmentDetailModal } from '@/components/EquipmentDetailModal'
 
@@ -24,7 +25,6 @@ function RentalNewForm() {
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [selected, setSelected] = useState<Record<string, number>>({})
   const [query, setQuery] = useState('')
-  const [schoolLevel, setSchoolLevel] = useState<SchoolLevel | ''>('')
   const [schoolName, setSchoolName] = useState('')
   const [teacherName, setTeacherName] = useState('')
   const [phone, setPhone] = useState('')
@@ -36,6 +36,7 @@ function RentalNewForm() {
   const [returnDueWarning, setReturnDueWarning] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [returnAgreed, setReturnAgreed] = useState(false) // 반납 절차 안내 동의
   const [cartNotice, setCartNotice] = useState('')   // 담은 교구 자동 선택 결과 안내
   const [detailName, setDetailName] = useState<string | null>(null) // 설명 보기 팝업
 
@@ -147,6 +148,18 @@ function RentalNewForm() {
       setError('교구를 1개 이상 선택해주세요.')
       return
     }
+    if (!ALL_SCHOOLS.includes(schoolName)) {
+      setError('학교명을 목록에서 선택해주세요.')
+      return
+    }
+    if (phone.replace(/\D/g, '').length < 10) {
+      setError('휴대폰 번호를 정확히 입력해주세요. (예: 010-0000-0000)')
+      return
+    }
+    if (!returnAgreed) {
+      setError('반납 절차 안내에 동의해주세요.')
+      return
+    }
 
     const body: CreateRentalRequest = {
       schoolName, teacherName, phone, email,
@@ -182,57 +195,29 @@ function RentalNewForm() {
         {/* Teacher info */}
         <section className="glass rounded-3xl p-5 flex flex-col gap-3">
           <h2 className="font-semibold">신청자 정보</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-[9rem_1fr] gap-3">
-            <div className="flex flex-col gap-1 min-w-0">
-              <label className="text-sm font-medium">학교급</label>
-              <select
-                required
-                value={schoolLevel}
-                onChange={e => {
-                  setSchoolLevel(e.target.value as SchoolLevel | '')
-                  setSchoolName('')
-                }}
-                className="glass-input px-3 py-2"
-              >
-                <option value="">선택</option>
-                {SCHOOL_LEVELS.map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1 min-w-0">
-              <label className="text-sm font-medium">학교명</label>
-              <select
-                required
-                value={schoolName}
-                onChange={e => setSchoolName(e.target.value)}
-                disabled={!schoolLevel}
-                className="glass-input px-3 py-2"
-              >
-                <option value="">{schoolLevel ? '학교를 선택하세요' : '학교급을 먼저 선택하세요'}</option>
-                {schoolLevel && SCHOOLS[schoolLevel].map(name => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <SchoolCombobox value={schoolName} onChange={setSchoolName} required />
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1.8fr] gap-3">
-            {[
-              { label: '선생님 성함', value: teacherName, onChange: setTeacherName },
-              { label: '핸드폰', value: phone, onChange: setPhone, type: 'tel' },
-              { label: '이메일', value: email, onChange: setEmail, type: 'email' },
-            ].map(({ label, value, onChange, type }) => (
-              <div key={label} className="flex flex-col gap-1 min-w-0">
-                <label className="text-sm font-medium">{label}</label>
-                <input
-                  required
-                  type={type ?? 'text'}
-                  value={value}
-                  onChange={e => onChange(e.target.value)}
-                  className="glass-input px-3 py-2 w-full min-w-0"
-                />
-              </div>
-            ))}
+            <div className="flex flex-col gap-1 min-w-0">
+              <label className="text-sm font-medium">선생님 성함</label>
+              <input required type="text" value={teacherName} onChange={e => setTeacherName(e.target.value)} className="glass-input px-3 py-2 w-full min-w-0" />
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <label className="text-sm font-medium">휴대폰</label>
+              <input
+                required
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="010-0000-0000"
+                value={phone}
+                onChange={e => setPhone(formatPhone(e.target.value))}
+                className="glass-input px-3 py-2 w-full min-w-0"
+              />
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <label className="text-sm font-medium">이메일</label>
+              <input required type="email" autoComplete="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)} className="glass-input px-3 py-2 w-full min-w-0" />
+            </div>
           </div>
         </section>
 
@@ -381,10 +366,25 @@ function RentalNewForm() {
           ) : null
         })()}
 
+        {/* 반납 절차 안내 및 동의 */}
+        <section className="glass rounded-3xl p-5 flex flex-col gap-3 border border-amber-200/70">
+          <h2 className="font-semibold text-amber-800">반납 절차 안내 (필독)</h2>
+          <ul className="text-sm text-gray-700 list-disc list-inside leading-relaxed">
+            <li>반납할 때는 <b>본 사이트 [대여 조회·반납·연장]에서 반납 신청</b>을 먼저 하신 뒤 교구를 센터로 반납해 주세요.</li>
+            <li>반납 신청·연장에는 <b>대여 ID와 신청 시 입력한 휴대폰 번호</b>가 필요합니다. (확인 메일에 안내됨)</li>
+            <li>관리자가 실물 반납을 확인하면 반납 완료 처리되며, 반납 예정일 3일 전에 안내 메일이 발송됩니다.</li>
+            <li>연장은 1회(2주) 가능하며, 반납 신청 후에는 연장할 수 없습니다.</li>
+          </ul>
+          <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+            <input type="checkbox" checked={returnAgreed} onChange={e => setReturnAgreed(e.target.checked)} className="mt-0.5" />
+            <span>위 반납 절차를 확인했으며, 반납 시 본 사이트에서 반납 신청할 것에 동의합니다.</span>
+          </label>
+        </section>
+
         <button
           type="submit"
-          disabled={submitting}
-          className="btn-liquid py-3 text-lg"
+          disabled={submitting || !returnAgreed}
+          className="btn-liquid py-3 text-lg disabled:opacity-50"
         >
           {submitting ? '신청 중...' : '대여 신청하기'}
         </button>

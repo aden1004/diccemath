@@ -1,13 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import type { RentalDetail } from '@/types'
 
 export default function AdminDashboard() {
   const [rentals, setRentals] = useState<RentalDetail[]>([])
-  const [statsFrom, setStatsFrom] = useState('')
-  const [statsTo, setStatsTo] = useState('')
-  const [stats, setStats] = useState<{ total: number; byEquipment: { name: string; count: number }[] } | null>(null)
-  const [statsError, setStatsError] = useState('')
   const [actionMsg, setActionMsg] = useState<Record<string, { message: string; ok: boolean }>>({})
 
   useEffect(() => {
@@ -23,18 +20,6 @@ export default function AdminDashboard() {
     const data = await res.json()
     setActionMsg(prev => ({ ...prev, [rentalId]: { message: res.ok ? '반납 처리 완료' : data.error, ok: res.ok } }))
     if (res.ok) setRentals(prev => prev.filter(r => r.rentalId !== rentalId))
-  }
-
-  async function handleStats(e: React.FormEvent) {
-    e.preventDefault()
-    setStatsError('')
-    setStats(null)
-    const res = await fetch(`/api/admin/stats?from=${statsFrom}&to=${statsTo}`)
-    if (!res.ok) {
-      setStatsError((await res.json()).error ?? '통계 조회 실패')
-      return
-    }
-    setStats(await res.json())
   }
 
   return (
@@ -103,26 +88,7 @@ export default function AdminDashboard() {
 
       <section>
         <h2 className="text-lg font-semibold mb-3">대여 통계</h2>
-        <form onSubmit={handleStats} className="glass rounded-2xl p-3 inline-flex gap-2 mb-4">
-          <input type="date" required value={statsFrom} onChange={e => setStatsFrom(e.target.value)} className="glass-input px-2 py-1" />
-          <span className="self-center">~</span>
-          <input type="date" required value={statsTo} onChange={e => setStatsTo(e.target.value)} className="glass-input px-2 py-1" />
-          <button type="submit" className="btn-liquid px-4 py-1 text-sm">조회</button>
-        </form>
-        {statsError && <p className="text-red-600 text-sm mb-2">{statsError}</p>}
-        {stats && (
-          <div className="glass rounded-2xl p-4">
-            <p className="font-semibold mb-2">총 {stats.total}건</p>
-            <table className="w-full text-sm">
-              <thead><tr className="text-left border-b"><th className="py-1">교구명</th><th>대여횟수</th></tr></thead>
-              <tbody>
-                {stats.byEquipment.map(s => (
-                  <tr key={s.name} className="border-b"><td className="py-1">{s.name}</td><td>{s.count}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <p className="text-sm text-gray-600">대여자별·교구별·신청일자별 집계와 엑셀 내려받기는 <Link href="/admin/stats" className="text-blue-600 underline">통계</Link> 메뉴에서 이용할 수 있습니다.</p>
       </section>
     </div>
   )

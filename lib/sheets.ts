@@ -434,3 +434,59 @@ export async function clearTemplateFile(): Promise<void> {
   await setAdminSetting('form_template_name', '')
   await setAdminSetting('form_template_updated', '')
 }
+
+// ── 교구 갱신·일괄 등록(엑셀 업로드용) ─────────────────────────────────────
+// 교구목록 열: A=순번, B=교구명, C=총수량, D=대여중수량, E=사진URL, F=설명, G=(예비), H=택배불가
+
+export type EquipmentInput = { name: string; totalQty: number; photoUrl: string; description: string; noDelivery: boolean }
+
+// 기존 교구 행 갱신: 총수량·사진·설명·택배불가 (대여중수량은 유지)
+export async function updateEquipmentDetails(rowIndex: number, input: EquipmentInput): Promise<void> {
+  const sheets = getSheets()
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    requestBody: {
+      valueInputOption: 'RAW',
+      data: [
+        { range: `교구목록!C${rowIndex}`, values: [[input.totalQty]] },
+        { range: `교구목록!E${rowIndex}:F${rowIndex}`, values: [[input.photoUrl, input.description]] },
+        { range: `교구목록!H${rowIndex}`, values: [[input.noDelivery ? '택배불가' : '']] },
+      ],
+    },
+  })
+}
+
+export async function updateEquipmentPhoto(rowIndex: number, photoUrl: string): Promise<void> {
+  await updateRow(`교구목록!E${rowIndex}`, [photoUrl])
+}
+
+// 신규 교구 추가(택배불가 포함). 반환: 추가 건수
+export async function addEquipmentRows(items: EquipmentInput[]): Promise<number> {
+  if (items.length === 0) return 0
+  const rows = await getRange('교구목록!A2:A')
+  const startId = rows.length + 1
+  const values = items.map((it, i) => [
+    startId + i, it.name, it.totalQty, 0, it.photoUrl, it.description, '', it.noDelivery ? '택배불가' : '',
+  ])
+  const sheets = getSheets()
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID,
+    range: '교구목록!A:H',
+    valueInputOption: 'RAW',
+    requestBody: { values },
+  })
+  return items.length
+}
+
+// ── 통계용: 전체 대여기록·상세 ─────────────────────────────────────────────
+export async function getAllRentals(): Promise<RentalRecord[]> {
+  const rows = await getRange('대여기록!A2:K')
+  return rows.filter(r => r[0]).map(rowToRental)
+}
+
+export async function getAllRentalItems(): Promise<RentalItem[]> {
+  const rows = await getRange('대여교구상세!A2:C')
+  return rows
+    .filter(r => r[0] && r[1])
+    .map(r => ({ rentalId: r[0], equipmentName: r[1] ?? '', quantity: parseInt(r[2] ?? '0', 10) || 0 }))
+}

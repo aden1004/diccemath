@@ -5,6 +5,7 @@ import type { Equipment } from '@/types'
 import { EquipmentCard } from '@/components/EquipmentCard'
 import { EquipmentDetailModal } from '@/components/EquipmentDetailModal'
 import { CartBar } from '@/components/CartBar'
+import { PwaInstall } from '@/components/PwaInstall'
 import { useCart, setCartQty } from '@/lib/cart'
 
 // 홈 화면: 교구 목록 + 검색/필터 + 상세 팝업 + 담기(장바구니)
@@ -42,6 +43,8 @@ export function EquipmentGrid({ equipment }: { equipment: Equipment[] }) {
           </Link>
         </div>
       </div>
+
+      <PwaInstall />
 
       <div className="glass rounded-2xl p-3 mb-5 flex items-center gap-3 flex-wrap">
         <input

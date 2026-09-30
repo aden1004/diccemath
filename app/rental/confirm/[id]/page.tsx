@@ -47,6 +47,10 @@ export default async function ConfirmPage({ params }: { params: Promise<{ id: st
             </ul>
           </div>
         </div>
+        <div className="rounded-2xl border border-amber-200/70 bg-amber-50/70 p-3 mb-4 text-sm text-gray-700">
+          <p className="font-semibold text-amber-800 mb-1">반납 안내</p>
+          <p>반납 시 먼저 <Link href="/rental/lookup" className="text-blue-600 underline">대여 조회·반납·연장</Link>에서 <b>반납 신청</b>을 한 뒤 교구를 센터로 반납해 주세요. 대여 ID와 휴대폰 번호가 필요하며, 반납 예정일 3일 전 안내 메일이 발송됩니다.</p>
+        </div>
         <Link href="/" className="text-blue-600 hover:underline text-sm">← 교구 목록으로</Link>
       </div>
     </div>

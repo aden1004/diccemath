@@ -9,6 +9,10 @@ function getTransporter() {
   })
 }
 
+function siteUrl(): string {
+  return (process.env.NEXT_PUBLIC_BASE_URL ?? 'https://diccemath.vercel.app').replace(/\/$/, '')
+}
+
 function formatItemList(items: RentalDetail['items']): string {
   return items.map(i => `• ${i.equipmentName} ${i.quantity}개`).join('\n')
 }
@@ -57,9 +61,38 @@ export async function sendRentalConfirmEmail(
 신청 교구:
 ${formatItemList(rental.items)}
 
+[반납 안내]
+- 반납 시 먼저 대여 조회 페이지에서 "반납 신청"을 한 뒤 교구를 센터로 반납해 주세요.
+- 반납 신청·연장에는 대여 ID(${rental.rentalId})와 신청 시 입력한 휴대폰 번호가 필요합니다.
+- 반납 예정일 3일 전에 안내 메일이 발송됩니다.
+- 대여 조회: ${siteUrl()}/rental/lookup
+
 문의: ${process.env.GMAIL_USER}
 `.trim()
   await sendMail(subject, text, [rental.email, ...adminEmails].filter(Boolean))
+}
+
+// 반납 예정일 D-3 안내 (이용자에게만 발송)
+export async function sendReturnReminderEmail(rental: RentalDetail, daysLeft: number): Promise<void> {
+  const subject = `[대구수학체험센터] 교구 반납 예정일 ${daysLeft}일 전 안내 - ${rental.rentalId}`
+  const text = `
+대여하신 교구의 반납 예정일이 ${daysLeft}일 남았습니다.
+
+대여 ID: ${rental.rentalId}
+학교명: ${rental.schoolName}
+신청자: ${rental.teacherName}
+반납 예정일: ${rental.returnDue}
+
+대여 교구:
+${formatItemList(rental.items)}
+
+반납 방법: 대여 조회 페이지에서 "반납 신청" 후 교구를 센터로 반납해 주세요.
+${rental.extended ? '(이미 1회 연장된 건으로 추가 연장은 불가합니다.)' : '기간 연장이 필요하면 같은 페이지에서 "2주 연장"(1회)을 신청할 수 있습니다.'}
+대여 조회: ${siteUrl()}/rental/lookup
+
+문의: ${process.env.GMAIL_USER}
+`.trim()
+  await sendMail(subject, text, [rental.email].filter(Boolean))
 }
 
 // 이용자 반납 신청 접수 알림 (관리자 확인 전)

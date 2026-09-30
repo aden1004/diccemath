@@ -1,6 +1,12 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import Image from 'next/image'
 import type { Equipment } from '@/types'
+
+type ImportRow = {
+  row: number; name: string; totalQty: number; photoUrl: string; description: string; noDelivery: boolean
+  error?: string; action: 'add' | 'update' | 'error'; current?: { totalQty: number; rentedQty: number }
+}
 
 type ParsedRow = { name: string; totalQty: number; photoUrl: string; description: string; error?: string }
 
@@ -29,6 +35,15 @@ export default function AdminInventoryPage() {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [bulkText, setBulkText] = useState('')
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
+  // 엑셀 업로드
+  const [xlsxFile, setXlsxFile] = useState<File | null>(null)
+  const [importRows, setImportRows] = useState<ImportRow[] | null>(null)
+  const [importBusy, setImportBusy] = useState(false)
+  const xlsxInputRef = useRef<HTMLInputElement>(null)
+  // 사진 업로드
+  const [photoBusyId, setPhotoBusyId] = useState<number | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const [photoTargetId, setPhotoTargetId] = useState<number | null>(null)
 
   const parsedRows = useMemo(() => parseBulkText(bulkText), [bulkText])
   const hasErrors = parsedRows.some(r => r.error)
@@ -78,6 +93,69 @@ export default function AdminInventoryPage() {
     if (res.ok) { setNewName(''); setNewQty(1); setNewPhoto(''); setNewDesc(''); load() }
   }
 
+  async function handleXlsxPreview(e: React.FormEvent) {
+    e.preventDefault()
+    if (!xlsxFile) { setMsg({ text: '엑셀 파일을 선택해주세요.', ok: false }); return }
+    setImportBusy(true)
+    setImportRows(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', xlsxFile)
+      const res = await fetch('/api/inventory/import', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { setMsg({ text: data.error, ok: false }); return }
+      setImportRows(data.rows)
+      setMsg(null)
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  async function handleXlsxCommit() {
+    if (!importRows) return
+    const valid = importRows.filter(r => r.action !== 'error')
+    if (valid.length === 0) return
+    const adds = valid.filter(r => r.action === 'add').length
+    const ups = valid.length - adds
+    if (!window.confirm(`추가 ${adds}건, 갱신 ${ups}건을 반영합니다. 진행할까요?`)) return
+    setImportBusy(true)
+    try {
+      const res = await fetch('/api/inventory/import', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: valid.map(r => ({ name: r.name, totalQty: r.totalQty, photoUrl: r.photoUrl, description: r.description, noDelivery: r.noDelivery })) }),
+      })
+      const data = await res.json()
+      setMsg({ text: res.ok ? `반영 완료: 추가 ${data.added}건, 갱신 ${data.updated}건` : data.error, ok: res.ok })
+      if (res.ok) { setImportRows(null); setXlsxFile(null); if (xlsxInputRef.current) xlsxInputRef.current.value = ''; load() }
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  function pickPhoto(id: number) {
+    setPhotoTargetId(id)
+    photoInputRef.current?.click()
+  }
+
+  async function handlePhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    const id = photoTargetId
+    e.target.value = ''
+    if (!file || id == null) return
+    setPhotoBusyId(id)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`/api/inventory/${id}/photo`, { method: 'POST', body: fd })
+      const data = await res.json()
+      setMsg({ text: res.ok ? '사진이 변경되었습니다.' : data.error, ok: res.ok })
+      if (res.ok) load()
+    } finally {
+      setPhotoBusyId(null)
+    }
+  }
+
   async function handleBulkUpload() {
     if (parsedRows.length === 0 || hasErrors) return
     if (!window.confirm(`${parsedRows.length}개 교구를 일괄 추가합니다. 진행할까요?`)) return
@@ -110,6 +188,82 @@ export default function AdminInventoryPage() {
           <textarea placeholder="설명" value={newDesc} onChange={e => setNewDesc(e.target.value)} className="glass-input px-3 py-2 col-span-2 h-20" />
           <button type="submit" className="col-span-2 btn-liquid py-2">추가</button>
         </form>
+      </section>
+
+      <section className="mb-8 glass rounded-3xl p-5">
+        <h2 className="font-semibold mb-1 text-gray-900">교구 일괄 업로드 (엑셀 파일)</h2>
+        <p className="text-sm text-gray-600 mb-3">
+          서식을 내려받아 작성한 뒤 업로드하세요. 이미 등록된 교구명은 <b>갱신</b>(총수량·사진·설명·택배불가), 없는 교구명은 <b>추가</b>됩니다.
+          현재 목록을 내려받아 수정 후 올리면 현행화가 간편합니다.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- 파일 다운로드 API */}
+          <a href="/api/inventory/template" className="btn-glass px-4 py-1.5 text-sm">📄 서식 내려받기</a>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- 파일 다운로드 API */}
+          <a href="/api/inventory/export" className="btn-glass px-4 py-1.5 text-sm">📥 현재 목록 내려받기</a>
+        </div>
+        <form onSubmit={handleXlsxPreview} className="flex gap-2 items-center flex-wrap">
+          <input ref={xlsxInputRef} type="file" accept=".xlsx" onChange={e => setXlsxFile(e.target.files?.[0] ?? null)} className="text-sm flex-1 min-w-0" />
+          <button type="submit" disabled={importBusy || !xlsxFile} className="btn-liquid px-4 py-1.5 text-sm disabled:opacity-50">
+            {importBusy ? '읽는 중...' : '미리보기'}
+          </button>
+        </form>
+        {importRows && (
+          <div className="mt-3 glass-inner overflow-hidden">
+            <div className="bg-white/50 px-3 py-2 text-sm font-medium text-gray-700 border-b border-white/60 flex flex-wrap gap-x-4">
+              <span>총 {importRows.length}행</span>
+              <span className="text-green-700">추가 {importRows.filter(r => r.action === 'add').length}</span>
+              <span className="text-blue-700">갱신 {importRows.filter(r => r.action === 'update').length}</span>
+              {importRows.some(r => r.action === 'error') && <span className="text-red-600">오류 {importRows.filter(r => r.action === 'error').length} (제외됨)</span>}
+            </div>
+            <div className="max-h-72 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-white/50 text-gray-600">
+                  <tr>
+                    <th className="px-2 py-1 text-left">행</th>
+                    <th className="px-2 py-1 text-left">구분</th>
+                    <th className="px-2 py-1 text-left">교구명</th>
+                    <th className="px-2 py-1 text-left">총수량</th>
+                    <th className="px-2 py-1 text-left">택배불가</th>
+                    <th className="px-2 py-1 text-left">설명</th>
+                    <th className="px-2 py-1 text-left">비고</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importRows.map(r => (
+                    <tr key={r.row} className={`border-t ${r.action === 'error' ? 'bg-red-50' : ''}`}>
+                      <td className="px-2 py-1 text-gray-500">{r.row}</td>
+                      <td className="px-2 py-1">
+                        {r.action === 'add' && <span className="text-green-700">추가</span>}
+                        {r.action === 'update' && <span className="text-blue-700">갱신</span>}
+                        {r.action === 'error' && <span className="text-red-600">오류</span>}
+                      </td>
+                      <td className="px-2 py-1 text-gray-900">{r.name}</td>
+                      <td className="px-2 py-1 text-gray-900">
+                        {r.totalQty || '-'}
+                        {r.current && r.current.totalQty !== r.totalQty && <span className="text-gray-400"> (현재 {r.current.totalQty})</span>}
+                      </td>
+                      <td className="px-2 py-1">{r.noDelivery ? 'O' : ''}</td>
+                      <td className="px-2 py-1 text-gray-500 max-w-[220px] truncate">{r.description || '-'}</td>
+                      <td className="px-2 py-1 text-red-600">{r.error ?? ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-3 py-2 border-t border-white/60 flex gap-2">
+              <button
+                type="button"
+                onClick={handleXlsxCommit}
+                disabled={importBusy || importRows.every(r => r.action === 'error')}
+                className="btn-liquid-green px-5 py-1.5 text-sm disabled:opacity-50"
+              >
+                {importBusy ? '반영 중...' : '등록(추가·갱신 반영)'}
+              </button>
+              <button type="button" onClick={() => setImportRows(null)} className="btn-glass px-4 py-1.5 text-sm">취소</button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="mb-8 glass rounded-3xl p-5">
@@ -176,12 +330,29 @@ export default function AdminInventoryPage() {
         </button>
       </section>
 
+      <input ref={photoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handlePhotoSelected} className="hidden" />
+
       <section>
-        <h2 className="font-semibold mb-3 text-gray-900">교구 목록 ({equipment.length}종)</h2>
+        <h2 className="font-semibold mb-3 text-gray-900">교구 목록 ({equipment.length}종) <span className="text-xs font-normal text-gray-500">— 사진을 누르면 변경</span></h2>
         <div className="flex flex-col gap-2">
           {equipment.map(item => (
             <div key={item.id} className="glass rounded-2xl p-3 flex items-center gap-3">
-              <span className="flex-1 text-sm font-medium text-gray-900">{item.name}</span>
+              <button
+                type="button"
+                onClick={() => pickPhoto(item.id)}
+                disabled={photoBusyId === item.id}
+                title="사진 변경"
+                className="relative w-12 h-12 rounded-xl bg-white/80 overflow-hidden shrink-0 ring-1 ring-white/70 hover:ring-blue-400"
+              >
+                {item.photoUrl
+                  ? <Image src={item.photoUrl} alt="" fill className="object-contain p-0.5" unoptimized />
+                  : <span className="text-[10px] text-gray-400 flex items-center justify-center h-full">사진</span>}
+                {photoBusyId === item.id && <span className="absolute inset-0 bg-white/70 text-[10px] flex items-center justify-center">업로드…</span>}
+              </button>
+              <span className="flex-1 text-sm font-medium text-gray-900">
+                {item.name}
+                {item.noDelivery && <span className="ml-2 text-[10px] text-orange-600">택배불가</span>}
+              </span>
               <span className="text-sm text-gray-500">총 {item.totalQty} / 대여중 {item.rentedQty}</span>
               {editId === item.id ? (
                 <>

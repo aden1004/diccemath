@@ -195,11 +195,11 @@ export default function AdminSettingsPage() {
             <li><code>{'{{대여기간}}'}</code> 수령일 ~ 반납예정일 <span className="text-red-500">*</span></li>
             <li><code>{'{{대여ID}}'}</code> 대여 ID</li>
             <li><code>{'{{신청일}}'}</code> 신청일</li>
-            <li><code>{'{{교구명}}'}</code> 교구명 (교구별 반복) <span className="text-red-500">*</span></li>
-            <li><code>{'{{수량}}'}</code> 수량 (교구별 반복) <span className="text-red-500">*</span></li>
-            <li><code>{'{{비고}}'}</code> 수령방법·연장 여부 (교구별 반복)</li>
+            <li><code>{'{{교구목록}}'}</code> 한 칸에 교구별 한 줄씩 &quot;교구명(n개)&quot; <span className="text-red-500">*</span></li>
+            <li><code>{'{{비고}}'}</code> 수령방법·연장 여부</li>
+            <li><code>{'{{교구명}}'}</code> / <code>{'{{수량}}'}</code> 행 반복 방식(교구목록 대신 사용 가능)</li>
           </ul>
-          <p className="mt-2">표 안에서 {'{{교구명}}'}·{'{{수량}}'}·{'{{비고}}'}가 들어 있는 행(연속 구간)은 교구 수만큼 자동으로 복제됩니다. * 표시는 필수 항목입니다.</p>
+          <p className="mt-2">기본 서식은 {'{{교구목록}}'} 한 칸 방식입니다. 대신 표 행에 {'{{교구명}}'}·{'{{수량}}'}을 쓰면 그 행 묶음이 교구 수만큼 복제됩니다. * 표시는 필수 항목({'{{교구목록}}'} 또는 {'{{교구명}}'}+{'{{수량}}'} 중 하나)입니다.</p>
         </details>
       </section>
 

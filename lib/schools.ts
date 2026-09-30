@@ -465,3 +465,29 @@ export const SCHOOLS: Record<SchoolLevel, string[]> = {
   '효성여자고등학교',
   ],
 }
+
+// ── 검색형 선택용 보조 ──────────────────────────────────────────────────────
+export const ALL_SCHOOLS: string[] = SCHOOL_LEVELS.flatMap(level => SCHOOLS[level])
+
+// 학교명 접미로 학교급 자동 판별
+export function inferSchoolLevel(name: string): SchoolLevel | null {
+  if (name.endsWith('고등학교')) return '고등학교'
+  if (name.endsWith('중학교')) return '중학교'
+  if (name.endsWith('초등학교')) return '초등학교'
+  return null
+}
+
+// 검색: 공백 무시, 시작 일치 우선 → 포함 일치. 최대 limit개
+export function searchSchools(query: string, limit = 30): string[] {
+  const q = query.replace(/\s+/g, '').toLowerCase()
+  if (!q) return []
+  const starts: string[] = []
+  const contains: string[] = []
+  for (const name of ALL_SCHOOLS) {
+    const n = name.replace(/\s+/g, '').toLowerCase()
+    if (n.startsWith(q)) starts.push(name)
+    else if (n.includes(q)) contains.push(name)
+    if (starts.length >= limit) break
+  }
+  return [...starts, ...contains].slice(0, limit)
+}

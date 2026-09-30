@@ -6,9 +6,12 @@ import type { RentalDetail } from '@/types'
 // 서식의 자리표시자({{소속}} 등)를 대여 정보로 치환하고,
 // 교구 자리표시자({{교구명}}·{{수량}}·{{비고}})가 있는 표 행 묶음을 교구 수만큼 복제한다.
 
-export const FIELD_PLACEHOLDERS = ['소속', '직위', '성명', '학교전화', '휴대폰', '대여기간', '대여ID', '신청일'] as const
+export const FIELD_PLACEHOLDERS = ['소속', '직위', '성명', '학교전화', '휴대폰', '대여기간', '대여ID', '신청일', '비고'] as const
 export const ITEM_PLACEHOLDERS = ['교구명', '수량', '비고'] as const
-export const REQUIRED_PLACEHOLDERS = ['소속', '성명', '휴대폰', '대여기간', '교구명', '수량'] as const
+// {{교구목록}}: 한 칸에 교구별 한 줄씩 "교구명(n개)" 나열 (행 반복 대신 사용)
+export const LIST_PLACEHOLDER = '교구목록'
+// 필수: 신청자 정보 + 교구 표기 방식 중 하나({{교구목록}} 또는 {{교구명}}+{{수량}})
+export const REQUIRED_PLACEHOLDERS = ['소속', '성명', '휴대폰', '대여기간'] as const
 
 type FieldValues = Record<(typeof FIELD_PLACEHOLDERS)[number], string>
 type ItemValues = Record<(typeof ITEM_PLACEHOLDERS)[number], string>
@@ -29,11 +32,13 @@ function escapeXml(s: string): string {
 }
 
 // 대여 정보 → 서식 값
-export function rentalToFormValues(rental: RentalDetail): { fields: FieldValues; items: ItemValues[] } {
+export function rentalToFormValues(rental: RentalDetail): { fields: FieldValues; items: ItemValues[]; listLines: string[] } {
   const pickup = rental.pickupMethod === 'delivery' ? '택배' : '직접 수령'
   const remark = rental.extended ? `${pickup} · 연장(1회)` : pickup
   return {
+    listLines: rental.items.length ? rental.items.map(i => `${i.equipmentName}(${i.quantity}개)`) : [''],
     fields: {
+      비고: remark,
       소속: rental.schoolName,
       직위: '교사',
       성명: rental.teacherName,
@@ -55,7 +60,8 @@ function replacePlaceholders(xml: string, values: Record<string, string>): strin
   )
 }
 
-const ITEM_RE = /\{\{\s*(교구명|수량|비고)\s*\}\}/
+// 행 반복 블록 판별은 교구명·수량 기준 (비고는 블록 안에 있으면 교구별, 밖이면 공통 값)
+const ITEM_RE = /\{\{\s*(교구명|수량)\s*\}\}/
 
 // 표 하나(<hp:tbl>…</hp:tbl>)에서 교구 행 묶음을 복제
 function expandTable(tbl: string, items: ItemValues[]): string {
@@ -103,8 +109,16 @@ function expandTable(tbl: string, items: ItemValues[]): string {
   return result
 }
 
-function fillSectionXml(xml: string, fields: FieldValues, items: ItemValues[]): string {
-  let out = xml.replace(/<hp:tbl\b[\s\S]*?<\/hp:tbl>/g, tbl => expandTable(tbl, items))
+// {{교구목록}}이 들어 있는 문단을 줄 수만큼 복제해 한 칸 안에 여러 줄로 표기
+function expandListParagraphs(xml: string, lines: string[]): string {
+  const paraRe = new RegExp(`<hp:p\\b[^>]*>(?:(?!<hp:p\\b)[\\s\\S])*?\\{\\{\\s*${LIST_PLACEHOLDER}\\s*\\}\\}[\\s\\S]*?<\\/hp:p>`, 'g')
+  const phRe = new RegExp(`\\{\\{\\s*${LIST_PLACEHOLDER}\\s*\\}\\}`, 'g')
+  return xml.replace(paraRe, para => lines.map(line => para.replace(phRe, escapeXml(line))).join(''))
+}
+
+function fillSectionXml(xml: string, fields: FieldValues, items: ItemValues[], listLines: string[]): string {
+  let out = expandListParagraphs(xml, listLines)
+  out = out.replace(/<hp:tbl\b[\s\S]*?<\/hp:tbl>/g, tbl => expandTable(tbl, items))
   out = replacePlaceholders(out, fields)
   // 표 밖에 남은 교구 자리표시자는 첫 교구 값으로 채움
   out = replacePlaceholders(out, items[0])
@@ -124,18 +138,21 @@ export async function validateTemplate(template: Buffer | Uint8Array): Promise<{
   let all = ''
   for (const f of sections) all += await zip.file(f)!.async('string')
   const found = Array.from(new Set(Array.from(all.matchAll(/\{\{\s*([^}\s]+)\s*\}\}/g), m => m[1])))
-  const missing = REQUIRED_PLACEHOLDERS.filter(k => !found.includes(k))
+  const missing: string[] = REQUIRED_PLACEHOLDERS.filter(k => !found.includes(k))
+  const hasList = found.includes(LIST_PLACEHOLDER)
+  const hasRows = found.includes('교구명') && found.includes('수량')
+  if (!hasList && !hasRows) missing.push(`${LIST_PLACEHOLDER}(또는 교구명+수량)`)
   return { ok: missing.length === 0, missing, found }
 }
 
 // 서식 + 대여 정보 → 완성된 HWPX 바이너리
 export async function buildRentalForm(template: Buffer | Uint8Array, rental: RentalDetail): Promise<Buffer> {
-  const { fields, items } = rentalToFormValues(rental)
+  const { fields, items, listLines } = rentalToFormValues(rental)
   const zip = await JSZip.loadAsync(template)
   const sections = Object.keys(zip.files).filter(f => /^Contents\/section\d+\.xml$/.test(f))
   for (const f of sections) {
     const xml = await zip.file(f)!.async('string')
-    zip.file(f, fillSectionXml(xml, fields, items))
+    zip.file(f, fillSectionXml(xml, fields, items, listLines))
   }
   // 미리보기 텍스트도 갱신(있을 때만)
   const prv = zip.file('Preview/PrvText.txt')

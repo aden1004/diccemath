@@ -9,7 +9,8 @@ import {
   getRentalById,
   getRentalItems,
 } from '@/lib/sheets'
-import { isValidAvailableFrom, isValidReturnDue, toKSTDate, toKSTISOString } from '@/lib/date-utils'
+import { isValidAvailableFrom, isValidReturnDue, toKSTDate, toKSTISOString, formatPhone, normalizePhone } from '@/lib/date-utils'
+import { ALL_SCHOOLS } from '@/lib/schools'
 import { sendRentalConfirmEmail } from '@/lib/email'
 import type { CreateRentalRequest } from '@/types'
 
@@ -26,6 +27,13 @@ export async function POST(req: Request) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: '유효한 이메일 주소를 입력해주세요.' }, { status: 400 })
     }
+    if (!ALL_SCHOOLS.includes(schoolName)) {
+      return NextResponse.json({ error: '학교명을 목록에서 선택해주세요.' }, { status: 400 })
+    }
+    if (normalizePhone(phone).length < 10) {
+      return NextResponse.json({ error: '휴대폰 번호를 정확히 입력해주세요.' }, { status: 400 })
+    }
+    const phoneFormatted = formatPhone(phone) // 저장 형식 통일: 010-1234-5678
 
     const now = new Date()
     const today = toKSTDate(now) // 한국시간 기준 신청일
@@ -63,7 +71,7 @@ export async function POST(req: Request) {
     }
 
     const rentalId = await createRental({
-      schoolName, teacherName, phone, email,
+      schoolName, teacherName, phone: phoneFormatted, email,
       appliedAt: toKSTISOString(now),
       pickupMethod,
       availableFrom,

@@ -1,11 +1,21 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: '대구수학체험센터 교구 대여',
   description: '수학교구를 대여해 드립니다.',
+  applicationName: '교구대여',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: '교구대여' },
+  icons: { icon: '/icon-192.png', apple: '/apple-touch-icon.png' },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#3b82f6',
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -32,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="text-center text-sm text-gray-500 py-8">
           made by Aden
         </footer>
+        <Analytics />
       </body>
     </html>
   )
