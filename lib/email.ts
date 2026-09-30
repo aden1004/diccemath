@@ -62,13 +62,38 @@ ${formatItemList(rental.items)}
   await sendMail(subject, text, [rental.email, ...adminEmails].filter(Boolean))
 }
 
+// 이용자 반납 신청 접수 알림 (관리자 확인 전)
+export async function sendReturnRequestEmail(
+  rental: RentalDetail,
+  adminEmails: string[]
+): Promise<void> {
+  const subject = `[대구수학체험센터] 교구 반납 신청 접수 - ${rental.rentalId}`
+  const text = `
+교구 반납 신청이 접수되었습니다.
+교구를 센터로 반납해 주시면 관리자 확인 후 반납 완료 처리됩니다.
+
+대여 ID: ${rental.rentalId}
+학교명: ${rental.schoolName}
+신청자: ${rental.teacherName}
+연락처: ${rental.phone}
+반납 예정일: ${rental.returnDue}
+
+반납 교구:
+${formatItemList(rental.items)}
+
+문의: ${process.env.GMAIL_USER}
+`.trim()
+  await sendMail(subject, text, [rental.email, ...adminEmails].filter(Boolean))
+}
+
+// 관리자 반납 확인 완료 알림
 export async function sendReturnEmail(
   rental: RentalDetail,
   adminEmails: string[]
 ): Promise<void> {
-  const subject = `[대구수학체험센터] 교구 반납 신청 - ${rental.rentalId}`
+  const subject = `[대구수학체험센터] 교구 반납 완료 - ${rental.rentalId}`
   const text = `
-교구 반납 신청이 접수되었습니다.
+교구 반납이 확인되어 반납 완료 처리되었습니다.
 
 대여 ID: ${rental.rentalId}
 학교명: ${rental.schoolName}

@@ -1,30 +1,16 @@
-import Link from 'next/link'
-import { getAllEquipment } from '@/lib/sheets'
-import { EquipmentCard } from '@/components/EquipmentCard'
+import { getAllEquipment, getEarliestReturnDueByEquipment } from '@/lib/sheets'
+import { EquipmentGrid } from '@/components/EquipmentGrid'
 
 export const revalidate = 60
 
 export default async function HomePage() {
   const equipment = (await getAllEquipment()).sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold">수학교구 목록</h1>
-        <div className="flex gap-2">
-          <Link href="/rental/lookup" className="btn-glass px-5 py-2">
-            대여 조회·반납·연장
-          </Link>
-          <Link href="/rental/new" className="btn-liquid px-5 py-2">
-            대여 신청하기
-          </Link>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {equipment.map(item => (
-          <EquipmentCard key={item.id} item={item} />
-        ))}
-      </div>
-    </div>
+  // 전량 대여중인 교구는 가장 빠른 반납 예정일을 함께 표시
+  const hasSoldOut = equipment.some(e => e.availableQty <= 0)
+  const earliestDue = hasSoldOut ? await getEarliestReturnDueByEquipment() : {}
+  const withDue = equipment.map(e =>
+    e.availableQty <= 0 ? { ...e, nextAvailableDate: earliestDue[e.name] ?? null } : e
   )
+
+  return <EquipmentGrid equipment={withDue} />
 }

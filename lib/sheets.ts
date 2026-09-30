@@ -1,5 +1,6 @@
 import { google } from 'googleapis'
 import { generateRentalId } from '@/lib/rental-id'
+import { normalizePhone, toKSTDate } from '@/lib/date-utils'
 import type { Equipment, RentalRecord, RentalItem, AdminEmail } from '@/types'
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID
@@ -148,7 +149,8 @@ function rowToRental(row: string[]): RentalRecord {
     pickupMethod: (row[6] === 'delivery' ? 'delivery' : 'direct'),
     availableFrom: row[7] ?? '',
     returnDue: row[8] ?? '',
-    status: (row[9] as RentalRecord['status']) ?? 'active',
+    status: (['active', 'extended', 'return_requested', 'returned'].includes(row[9])
+      ? row[9] : 'active') as RentalRecord['status'],
     extended: row[10] === 'Y',
   }
 }
@@ -156,7 +158,8 @@ function rowToRental(row: string[]): RentalRecord {
 export async function createRental(
   rental: Omit<RentalRecord, 'rentalId'>
 ): Promise<string> {
-  const dateStr = rental.appliedAt.split('T')[0]
+  // 대여ID 날짜·일련번호는 KST 기준 (appliedAt은 +09:00 오프셋 ISO 문자열)
+  const dateStr = toKSTDate(new Date(rental.appliedAt))
   // TOCTOU: countRentalsByDate + appendRow is not atomic. Concurrent submissions on the
   // same day can produce duplicate IDs. Probability is low for this use case but cannot
   // be fully eliminated without a locking primitive that Google Sheets does not provide.
@@ -185,13 +188,18 @@ export async function getRentalById(rentalId: string): Promise<RentalRecord | nu
 }
 
 export async function getRentalsByPhone(phone: string): Promise<RentalRecord[]> {
+  const target = normalizePhone(phone)
+  if (!target) return []
   const rows = await getRange('대여기록!A2:K')
-  return rows.filter(r => r[3] === phone).map(rowToRental)
+  return rows.filter(r => normalizePhone(r[3] ?? '') === target).map(rowToRental)
 }
+
+// 미반납 건: 대여중·연장중·반납신청(관리자 확인 전) — 재고가 아직 복구되지 않은 상태
+const OPEN_STATUSES = new Set(['active', 'extended', 'return_requested'])
 
 export async function getAllActiveRentals(): Promise<RentalRecord[]> {
   const rows = await getRange('대여기록!A2:K')
-  return rows.filter(r => r[9] === 'active' || r[9] === 'extended').map(rowToRental)
+  return rows.filter(r => OPEN_STATUSES.has(r[9] ?? '')).map(rowToRental)
 }
 
 export async function getRentalsByDateRange(
@@ -231,7 +239,7 @@ export async function updateRentalReturnDue(
 
 export async function countRentalsByDate(datePrefix: string): Promise<number> {
   const rows = await getRange('대여기록!F2:F')
-  return rows.filter(r => r[0]?.startsWith(datePrefix)).length
+  return rows.filter(r => r[0] && toKSTDate(new Date(r[0])) === datePrefix).length
 }
 
 // ── Rental Items (Sheet3: 대여교구상세) ─────────────────────────────────────
@@ -315,8 +323,7 @@ async function getAdminEmailRowIndex(id: number): Promise<number> {
 export async function addAdminEmail(email: string, name: string): Promise<void> {
   const rows = await getRange('관리자이메일!A2:A')
   const nextId = rows.length + 1
-  const today = new Date().toISOString().split('T')[0]
-  await appendRow('관리자이메일!A:D', [nextId, email, name, today])
+  await appendRow('관리자이메일!A:D', [nextId, email, name, toKSTDate()])
 }
 
 export async function updateAdminEmail(
@@ -345,4 +352,85 @@ export async function deleteAdminEmailRow(id: number): Promise<void> {
       }],
     },
   })
+}
+
+// ── 서식 파일 저장 (Sheet6: 서식파일) ──────────────────────────────────────
+// A=파일키, B=순번, C=base64 조각(최대 40,000자). 셀 50,000자 제한을 피하기 위해 분할 저장.
+// 관리자설정 시트에 form_template_name / form_template_updated 메타 기록.
+
+const TEMPLATE_SHEET = '서식파일'
+const TEMPLATE_KEY = 'rental_form'
+const CHUNK = 40000
+
+async function ensureSheetExists(title: string): Promise<void> {
+  const sheets = getSheets()
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID })
+  if (meta.data.sheets?.some(s => s.properties?.title === title)) return
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SHEET_ID,
+    requestBody: { requests: [{ addSheet: { properties: { title } } }] },
+  })
+  await appendRow(`${title}!A:C`, ['파일키', '순번', '데이터'])
+}
+
+async function setAdminSetting(key: string, value: string): Promise<void> {
+  const rows = await getRange('관리자설정!A2:A')
+  const idx = rows.findIndex(r => r[0] === key)
+  if (idx === -1) await appendRow('관리자설정!A:B', [key, value])
+  else await updateRow(`관리자설정!B${idx + 2}`, [value])
+}
+
+async function getAdminSetting(key: string): Promise<string> {
+  const rows = await getRange('관리자설정!A2:B')
+  return rows.find(r => r[0] === key)?.[1] ?? ''
+}
+
+export async function getTemplateMeta(): Promise<{ name: string; updatedAt: string } | null> {
+  const name = await getAdminSetting('form_template_name')
+  if (!name) return null
+  return { name, updatedAt: await getAdminSetting('form_template_updated') }
+}
+
+export async function getTemplateFile(): Promise<Buffer | null> {
+  const meta = await getTemplateMeta()
+  if (!meta) return null
+  let rows: string[][]
+  try {
+    rows = await getRange(`${TEMPLATE_SHEET}!A2:C`)
+  } catch {
+    return null
+  }
+  const chunks = rows
+    .filter(r => r[0] === TEMPLATE_KEY)
+    .sort((a, b) => parseInt(a[1], 10) - parseInt(b[1], 10))
+    .map(r => r[2] ?? '')
+  if (chunks.length === 0) return null
+  return Buffer.from(chunks.join(''), 'base64')
+}
+
+export async function setTemplateFile(name: string, data: Buffer): Promise<void> {
+  await ensureSheetExists(TEMPLATE_SHEET)
+  const sheets = getSheets()
+  // 기존 조각 제거 후 새로 기록
+  await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: `${TEMPLATE_SHEET}!A2:C` })
+  const b64 = data.toString('base64')
+  const values: string[][] = []
+  for (let i = 0, n = 0; i < b64.length; i += CHUNK, n++) values.push([TEMPLATE_KEY, String(n), b64.slice(i, i + CHUNK)])
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SHEET_ID,
+    range: `${TEMPLATE_SHEET}!A:C`,
+    valueInputOption: 'RAW',
+    requestBody: { values },
+  })
+  await setAdminSetting('form_template_name', name)
+  await setAdminSetting('form_template_updated', toKSTDate())
+}
+
+export async function clearTemplateFile(): Promise<void> {
+  const sheets = getSheets()
+  try {
+    await sheets.spreadsheets.values.clear({ spreadsheetId: SHEET_ID, range: `${TEMPLATE_SHEET}!A2:C` })
+  } catch { /* 시트 없음 */ }
+  await setAdminSetting('form_template_name', '')
+  await setAdminSetting('form_template_updated', '')
 }

@@ -4,6 +4,25 @@ export function formatDate(date: Date): string {
   return date.toISOString().split('T')[0]
 }
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+
+// 한국 표준시(KST) 기준 YYYY-MM-DD. 서버(UTC)·브라우저 어디서 실행해도 동일한 '오늘'을 반환.
+export function toKSTDate(date: Date = new Date()): string {
+  if (isNaN(date.getTime())) return ''
+  return new Date(date.getTime() + KST_OFFSET_MS).toISOString().split('T')[0]
+}
+
+// KST 기준 ISO 8601 문자열(+09:00 오프셋 포함). 대여기록 신청일시 저장용.
+export function toKSTISOString(date: Date = new Date()): string {
+  const local = new Date(date.getTime() + KST_OFFSET_MS).toISOString()
+  return local.replace('Z', '+09:00')
+}
+
+// 전화번호 비교용 정규화: 숫자만 남김 (하이픈·공백·괄호 무시)
+export function normalizePhone(phone: string): string {
+  return (phone ?? '').replace(/\D/g, '')
+}
+
 export function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr)
   d.setUTCDate(d.getUTCDate() + days)

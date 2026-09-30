@@ -14,15 +14,64 @@ export default function AdminSettingsPage() {
   const [confirmPw, setConfirmPw] = useState('')
   const [emailMsg, setEmailMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [pwMsg, setPwMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  // 신청서 서식(HWPX)
+  const [tpl, setTpl] = useState<{ source: 'default' | 'uploaded'; name: string; updatedAt: string; required: string[] } | null>(null)
+  const [tplFile, setTplFile] = useState<File | null>(null)
+  const [tplMsg, setTplMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [tplBusy, setTplBusy] = useState(false)
+
+  async function loadTemplate() {
+    const res = await fetch('/api/admin/settings/template')
+    if (res.ok) setTpl(await res.json())
+  }
 
   async function loadEmails() {
     const res = await fetch('/api/admin/settings/emails')
-    if (res.status === 401) { window.location.href = '/admin/login'; return }
+    if (res.status === 401) { window.location.assign('/admin/login'); return }
     if (!res.ok) return
     setEmails(await res.json())
   }
 
-  useEffect(() => { loadEmails() }, [])
+  useEffect(() => {
+    fetch('/api/admin/settings/emails')
+      .then(res => {
+        if (res.status === 401) { window.location.href = '/admin/login'; return null }
+        return res.ok ? res.json() : null
+      })
+      .then(data => { if (data) setEmails(data) })
+      .catch(() => {})
+    fetch('/api/admin/settings/template')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) setTpl(data) })
+      .catch(() => {})
+  }, [])
+
+  async function handleUploadTemplate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!tplFile) { setTplMsg({ text: 'HWPX 파일을 선택해주세요.', ok: false }); return }
+    setTplBusy(true)
+    setTplMsg(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', tplFile)
+      const res = await fetch('/api/admin/settings/template', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { setTplMsg({ text: data.error, ok: false }); return }
+      setTplMsg({ text: `서식이 등록되었습니다. 인식된 자리표시자: ${data.found.map((k: string) => `{{${k}}}`).join(', ')}`, ok: true })
+      setTplFile(null)
+      loadTemplate()
+    } finally {
+      setTplBusy(false)
+    }
+  }
+
+  async function handleResetTemplate() {
+    if (!window.confirm('업로드한 서식을 삭제하고 기본 내장 서식으로 되돌리시겠습니까?')) return
+    const res = await fetch('/api/admin/settings/template', { method: 'DELETE' })
+    const data = await res.json()
+    setTplMsg({ text: res.ok ? '기본 서식으로 되돌렸습니다.' : data.error, ok: res.ok })
+    if (res.ok) loadTemplate()
+  }
 
   async function handleAddEmail(e: React.FormEvent) {
     e.preventDefault()
@@ -102,6 +151,56 @@ export default function AdminSettingsPage() {
           <input placeholder="이름" value={newName} onChange={e => setNewName(e.target.value)} className="glass-input px-2 py-1 text-sm w-24" />
           <button type="submit" className="btn-liquid px-4 py-1 text-sm">추가</button>
         </form>
+      </section>
+
+      {/* Rental form template */}
+      <section className="glass rounded-3xl p-5 mb-6">
+        <h2 className="font-semibold mb-1">신청서 서식(HWPX)</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          대시보드의 [신청서 HWP] 버튼으로 생성되는 한글 문서의 서식입니다. 한글에서 서식을 만든 뒤 <b>HWPX</b>로 저장해 업로드하세요.
+        </p>
+        {tpl && (
+          <div className="glass-inner px-3 py-2 text-sm mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className={`text-xs px-2 py-0.5 rounded-full ${tpl.source === 'uploaded' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'}`}>
+              {tpl.source === 'uploaded' ? '업로드 서식 사용 중' : '기본 내장 서식 사용 중'}
+            </span>
+            <span className="font-medium">{tpl.name}</span>
+            {tpl.updatedAt && <span className="text-gray-500 text-xs">등록일 {tpl.updatedAt}</span>}
+            <a href="/api/admin/settings/template?download=1" className="text-blue-600 text-xs hover:underline ml-auto">현재 서식 내려받기</a>
+            {tpl.source === 'uploaded' && (
+              <button type="button" onClick={handleResetTemplate} className="text-red-500 text-xs hover:underline">기본 서식으로 되돌리기</button>
+            )}
+          </div>
+        )}
+        {tplMsg && <p className={`text-sm mb-2 ${tplMsg.ok ? 'text-blue-700' : 'text-red-600'}`}>{tplMsg.text}</p>}
+        <form onSubmit={handleUploadTemplate} className="flex gap-2 items-center flex-wrap">
+          <input
+            type="file"
+            accept=".hwpx"
+            onChange={e => setTplFile(e.target.files?.[0] ?? null)}
+            className="text-sm flex-1 min-w-0"
+          />
+          <button type="submit" disabled={tplBusy || !tplFile} className="btn-liquid px-4 py-1 text-sm disabled:opacity-50">
+            {tplBusy ? '업로드 중...' : '서식 업로드'}
+          </button>
+        </form>
+        <details className="mt-3 text-xs text-gray-600">
+          <summary className="cursor-pointer text-gray-700">자리표시자 안내 (서식에 그대로 입력)</summary>
+          <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+            <li><code>{'{{소속}}'}</code> 학교명 <span className="text-red-500">*</span></li>
+            <li><code>{'{{직위}}'}</code> &quot;교사&quot; 고정</li>
+            <li><code>{'{{성명}}'}</code> 선생님 성함 <span className="text-red-500">*</span></li>
+            <li><code>{'{{학교전화}}'}</code> 공란</li>
+            <li><code>{'{{휴대폰}}'}</code> 휴대폰 <span className="text-red-500">*</span></li>
+            <li><code>{'{{대여기간}}'}</code> 수령일 ~ 반납예정일 <span className="text-red-500">*</span></li>
+            <li><code>{'{{대여ID}}'}</code> 대여 ID</li>
+            <li><code>{'{{신청일}}'}</code> 신청일</li>
+            <li><code>{'{{교구명}}'}</code> 교구명 (교구별 반복) <span className="text-red-500">*</span></li>
+            <li><code>{'{{수량}}'}</code> 수량 (교구별 반복) <span className="text-red-500">*</span></li>
+            <li><code>{'{{비고}}'}</code> 수령방법·연장 여부 (교구별 반복)</li>
+          </ul>
+          <p className="mt-2">표 안에서 {'{{교구명}}'}·{'{{수량}}'}·{'{{비고}}'}가 들어 있는 행(연속 구간)은 교구 수만큼 자동으로 복제됩니다. * 표시는 필수 항목입니다.</p>
+        </details>
       </section>
 
       {/* Password change */}

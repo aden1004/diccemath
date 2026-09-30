@@ -11,7 +11,8 @@ export interface Equipment {
 }
 
 export type PickupMethod = 'direct' | 'delivery'
-export type RentalStatus = 'active' | 'returned' | 'extended'
+// return_requested: 이용자가 반납 신청한 상태(실물 반납·관리자 확인 전, 재고 미복구)
+export type RentalStatus = 'active' | 'extended' | 'return_requested' | 'returned'
 
 export interface RentalRecord {
   rentalId: string

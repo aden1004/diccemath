@@ -97,3 +97,34 @@ describe('formatDate', () => {
     expect(formatDate(new Date('2026-04-23T00:00:00Z'))).toBe('2026-04-23')
   })
 })
+
+import { toKSTDate, toKSTISOString, normalizePhone } from '@/lib/date-utils'
+
+describe('toKSTDate', () => {
+  it('UTC 자정 직전(전날 15:00 UTC 이후)은 한국 날짜로 다음 날', () => {
+    expect(toKSTDate(new Date('2026-09-28T16:30:00Z'))).toBe('2026-09-29')
+  })
+  it('UTC 오전은 같은 날', () => {
+    expect(toKSTDate(new Date('2026-09-28T03:00:00Z'))).toBe('2026-09-28')
+  })
+  it('+09:00 오프셋 문자열도 올바르게 해석', () => {
+    expect(toKSTDate(new Date('2026-09-29T01:00:00+09:00'))).toBe('2026-09-29')
+  })
+  it('잘못된 날짜는 빈 문자열', () => {
+    expect(toKSTDate(new Date('invalid'))).toBe('')
+  })
+})
+
+describe('toKSTISOString', () => {
+  it('+09:00 오프셋을 포함한 ISO 문자열', () => {
+    expect(toKSTISOString(new Date('2026-09-28T16:30:00Z'))).toBe('2026-09-29T01:30:00.000+09:00')
+  })
+})
+
+describe('normalizePhone', () => {
+  it('하이픈·공백 제거', () => {
+    expect(normalizePhone('010-1234-5678')).toBe('01012345678')
+    expect(normalizePhone(' 010 1234 5678 ')).toBe('01012345678')
+    expect(normalizePhone('01012345678')).toBe('01012345678')
+  })
+})

@@ -9,7 +9,7 @@ import {
   getRentalById,
   getRentalItems,
 } from '@/lib/sheets'
-import { isValidAvailableFrom, isValidReturnDue } from '@/lib/date-utils'
+import { isValidAvailableFrom, isValidReturnDue, toKSTDate, toKSTISOString } from '@/lib/date-utils'
 import { sendRentalConfirmEmail } from '@/lib/email'
 import type { CreateRentalRequest } from '@/types'
 
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     const now = new Date()
-    const today = now.toISOString().split('T')[0]
+    const today = toKSTDate(now) // 한국시간 기준 신청일
 
     if (!isValidAvailableFrom(availableFrom, today, pickupMethod)) {
       return NextResponse.json({ error: '수령 가능일이 올바르지 않습니다.' }, { status: 400 })
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
     const rentalId = await createRental({
       schoolName, teacherName, phone, email,
-      appliedAt: now.toISOString(),
+      appliedAt: toKSTISOString(now),
       pickupMethod,
       availableFrom,
       returnDue,

@@ -3,6 +3,7 @@ import { getRentalById, getRentalItems, updateRentalStatus, adjustRentedQty, get
 import { requireAdmin } from '@/lib/auth'
 import { sendReturnEmail } from '@/lib/email'
 
+// 관리자 반납 확인: 상태 'returned' + 재고 복구 (이용자 반납 신청 여부와 무관하게 처리 가능)
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })

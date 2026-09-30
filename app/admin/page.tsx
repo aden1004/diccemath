@@ -18,7 +18,7 @@ export default function AdminDashboard() {
   }, [])
 
   async function handleReturn(rentalId: string) {
-    if (!window.confirm('반납 처리하시겠습니까?')) return
+    if (!window.confirm('실물 반납을 확인하셨습니까? 반납 완료 처리 시 재고가 복구됩니다.')) return
     const res = await fetch(`/api/admin/rentals/${rentalId}/return`, { method: 'POST' })
     const data = await res.json()
     setActionMsg(prev => ({ ...prev, [rentalId]: { message: res.ok ? '반납 처리 완료' : data.error, ok: res.ok } }))
@@ -50,6 +50,16 @@ export default function AdminDashboard() {
               <div>
                 <p className="font-bold">
                   {rental.rentalId} · {rental.schoolName}
+                  {rental.status === 'return_requested' && (
+                    <span className="ml-2 align-middle text-xs px-2 py-0.5 rounded font-medium bg-amber-100 text-amber-700">
+                      반납신청
+                    </span>
+                  )}
+                  {rental.status === 'extended' && (
+                    <span className="ml-2 align-middle text-xs px-2 py-0.5 rounded font-medium bg-purple-100 text-purple-700">
+                      연장
+                    </span>
+                  )}
                   <span
                     className={`ml-2 align-middle text-xs px-2 py-0.5 rounded font-medium ${
                       rental.pickupMethod === 'delivery'
@@ -71,12 +81,21 @@ export default function AdminDashboard() {
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => handleReturn(rental.rentalId)}
-                className="btn-glass px-4 py-1.5 text-sm whitespace-nowrap ml-4"
-              >
-                반납 처리
-              </button>
+              <div className="flex flex-col gap-2 ml-4 shrink-0">
+                <button
+                  onClick={() => handleReturn(rental.rentalId)}
+                  className="btn-glass px-4 py-1.5 text-sm whitespace-nowrap"
+                >
+                  반납 확인(완료 처리)
+                </button>
+                <a
+                  href={`/api/admin/rentals/${rental.rentalId}/form`}
+                  className="btn-glass px-4 py-1.5 text-sm whitespace-nowrap text-center text-blue-700"
+                  title="한글(HWPX) 신청서 생성·다운로드"
+                >
+                  신청서 HWP ↓
+                </a>
+              </div>
             </div>
           ))}
         </div>

@@ -2,8 +2,10 @@
 import { Suspense, useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { Equipment, PickupMethod, CreateRentalRequest } from '@/types'
-import { addDays, getMinAvailableFrom, getDefaultReturnDue, isWeekend } from '@/lib/date-utils'
+import { addDays, getMinAvailableFrom, getDefaultReturnDue, isWeekend, toKSTDate } from '@/lib/date-utils'
 import { SCHOOLS, SCHOOL_LEVELS, type SchoolLevel } from '@/lib/schools'
+import { getCart, clearCart } from '@/lib/cart'
+import { EquipmentDetailModal } from '@/components/EquipmentDetailModal'
 
 export default function RentalNewPage() {
   return (
@@ -34,11 +36,20 @@ function RentalNewForm() {
   const [returnDueWarning, setReturnDueWarning] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [cartNotice, setCartNotice] = useState('')   // 담은 교구 자동 선택 결과 안내
+  const [detailName, setDetailName] = useState<string | null>(null) // 설명 보기 팝업
 
+  // 한국시간 기준 오늘 날짜로 최소 수령일 계산 (서버 검증과 동일 기준)
   const minAvailableFrom = useMemo(
-    () => getMinAvailableFrom(new Date().toISOString().split('T')[0], pickupMethod),
+    () => getMinAvailableFrom(toKSTDate(), pickupMethod),
     [pickupMethod]
   )
+
+  // 수령 방법 변경 등으로 최소 수령일이 바뀌어 현재 선택값이 이르면 렌더 중 보정 (effect 내 setState 회피)
+  if (availableFrom < minAvailableFrom) {
+    setAvailableFrom(minAvailableFrom)
+    setReturnDue(getDefaultReturnDue(minAvailableFrom))
+  }
 
   useEffect(() => {
     fetch('/api/inventory')
@@ -48,19 +59,31 @@ function RentalNewForm() {
         if (preselectName) {
           const eq = list.find(e => e.name === preselectName)
           if (eq && eq.availableQty > 0) setSelected({ [eq.name]: 1 })
+          return
         }
+        // 홈 화면에서 담아 둔 교구를 자동 선택 (최신 재고 기준으로 수량 보정·품절 제외)
+        const cart = getCart()
+        const names = Object.keys(cart)
+        if (names.length === 0) return
+        const next: Record<string, number> = {}
+        const adjusted: string[] = []
+        const dropped: string[] = []
+        for (const name of names) {
+          const eq = list.find(e => e.name === name)
+          if (!eq || eq.availableQty <= 0) { dropped.push(name); continue }
+          const qty = Math.min(cart[name], eq.availableQty)
+          if (qty < cart[name]) adjusted.push(`${name} ${cart[name]}→${qty}개`)
+          next[name] = qty
+        }
+        setSelected(next)
+        const notes: string[] = []
+        if (Object.keys(next).length) notes.push(`담아 둔 교구 ${Object.keys(next).length}종이 선택되었습니다.`)
+        if (adjusted.length) notes.push(`재고 변동으로 수량 조정: ${adjusted.join(', ')}`)
+        if (dropped.length) notes.push(`현재 대여 불가로 제외: ${dropped.join(', ')}`)
+        setCartNotice(notes.join(' '))
       })
       .catch(() => setError('교구 목록을 불러오지 못했습니다.'))
   }, [preselectName])
-
-  useEffect(() => {
-    if (availableFrom >= minAvailableFrom) {
-      setReturnDue(getDefaultReturnDue(availableFrom))
-    } else {
-      setAvailableFrom(minAvailableFrom)
-      setReturnDue(getDefaultReturnDue(minAvailableFrom))
-    }
-  }, [availableFrom, minAvailableFrom])
 
   // 택배로 바꿀 때 택배불가 교구가 선택되어 있으면 알림을 띄우고 직접 수령을 유지
   function handleMethodChange(method: PickupMethod) {
@@ -84,6 +107,8 @@ function RentalNewForm() {
     }
     setAvailableFromWarning('')
     setAvailableFrom(value)
+    // 수령일 변경 시 반납 예정일을 기본값(수령일+14)으로 재설정
+    if (value) setReturnDue(getDefaultReturnDue(value))
   }
 
   function handleReturnDueChange(value: string) {
@@ -141,6 +166,7 @@ function RentalNewForm() {
         return
       }
       const { rentalId } = await res.json()
+      clearCart() // 신청 완료 → 담은 목록 비움
       router.push(`/rental/confirm/${rentalId}`)
     } catch {
       setError('네트워크 오류가 발생했습니다.')
@@ -233,8 +259,11 @@ function RentalNewForm() {
 
         {/* Equipment selection */}
         <section className="glass rounded-3xl p-5">
+          {cartNotice && (
+            <p className="text-xs text-blue-700 bg-blue-50/80 rounded-xl px-3 py-2 mb-3">{cartNotice}</p>
+          )}
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-            <h2 className="font-semibold">교구 선택</h2>
+            <h2 className="font-semibold">교구 선택 <span className="text-xs font-normal text-gray-500">(ⓘ 누르면 사진·설명 보기)</span></h2>
             <input
               type="search"
               value={query}
@@ -263,6 +292,15 @@ function RentalNewForm() {
                       else handleQtyChange(item.name, 0, item.availableQty)
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setDetailName(item.name)}
+                    className="text-blue-500 hover:text-blue-700 text-sm leading-none"
+                    aria-label={`${item.name} 설명 보기`}
+                    title="사진·설명 보기"
+                  >
+                    ⓘ
+                  </button>
                   <label
                     htmlFor={`eq-${item.id}`}
                     className={`flex-1 text-sm ${disabled ? 'text-gray-400' : ''}`}
@@ -331,6 +369,17 @@ function RentalNewForm() {
         </section>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
+
+        {detailName && (() => {
+          const item = equipment.find(e => e.name === detailName)
+          return item ? (
+            <EquipmentDetailModal
+              item={item}
+              cartQty={selected[item.name] ?? 0}
+              onClose={() => setDetailName(null)}
+            />
+          ) : null
+        })()}
 
         <button
           type="submit"

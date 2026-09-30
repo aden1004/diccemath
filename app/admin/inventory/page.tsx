@@ -39,7 +39,13 @@ export default function AdminInventoryPage() {
     setEquipment(await res.json())
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    // 최초 1회 목록 로드 (setState는 fetch 완료 후 비동기로 호출됨)
+    fetch('/api/inventory')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) setEquipment(data) })
+      .catch(() => {})
+  }, [])
 
   async function handleUpdate(id: number) {
     const res = await fetch(`/api/inventory/${id}`, {
@@ -80,7 +86,7 @@ export default function AdminInventoryPage() {
       const res = await fetch('/api/inventory/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: parsedRows.map(({ error: _e, ...r }) => r) }),
+        body: JSON.stringify({ items: parsedRows.map(r => ({ name: r.name, totalQty: r.totalQty, photoUrl: r.photoUrl, description: r.description })) }),
       })
       const data = await res.json()
       setMsg({ text: res.ok ? `${data.count}개 추가 완료` : data.error, ok: res.ok })
